@@ -46,7 +46,8 @@ Add1Sweep::Add1Sweep()
     1024 * 1024 * 1024 / sizeof(float)
   };
 
-  constexpr size_t Stride = 4096 / sizeof(float) + 16;
+  constexpr size_t CachelineOffset = 64 / sizeof(float);
+  constexpr size_t Stride = 2 * 4096 / sizeof(float) + CachelineOffset;
 
   TimeStampCounter tsc;
   const float_v one(1.f);
