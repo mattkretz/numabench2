@@ -46,9 +46,6 @@ Add1Sweep::Add1Sweep()
     1024 * 1024 * 1024 / sizeof(float)
   };
 
-  constexpr size_t CachelineOffset = 64 / sizeof(float);
-  constexpr size_t Stride = 2 * 4096 / sizeof(float) + CachelineOffset;
-
   TimeStampCounter tsc;
   const float_v one(1.f);
 
@@ -56,31 +53,39 @@ Add1Sweep::Add1Sweep()
     const int iterations = *(std::end(counts) - 1) / count;
     for (int cpu = 0; cpu < maxThreadCount; ++cpu) {
       pinToCpu(cpu);
-      tsc.start();
-      for (int it = 0; it < iterations; ++it) {
-        for (size_t start = 0; start < Stride; start += float_v::Size) {
-          size_t i = start;
-          for (; i + 3 * Stride < count; i += 4 * Stride) {
-            const float_v tmp0 = one + float_v(&mem[i + 0 * Stride]);
-            const float_v tmp1 = one + float_v(&mem[i + 1 * Stride]);
-            const float_v tmp2 = one + float_v(&mem[i + 2 * Stride]);
-            const float_v tmp3 = one + float_v(&mem[i + 3 * Stride]);
-            tmp0.store(&mem[i + 0 * Stride]);
-            tmp1.store(&mem[i + 1 * Stride]);
-            tmp2.store(&mem[i + 2 * Stride]);
-            tmp3.store(&mem[i + 3 * Stride]);
+      for (size_t strideOffset : { 64 / sizeof(float), size_t(0) }) {
+        for (size_t stride0 = float_v::Size; stride0 <= 256 * 1024 * 1024; stride0 *= 2) {
+          size_t stride = stride0 + strideOffset;
+          if (stride >= count) {
+            break;
           }
-          for (; i < count; i += Stride) {
-            const float_v tmp0 = one + float_v(&mem[i]);
-            tmp0.store(&mem[i]);
+          tsc.start();
+          for (int it = 0; it < iterations; ++it) {
+            for (size_t start = 0; start < stride; start += float_v::Size) {
+              size_t i = start;
+              for (; i + 3 * stride < count; i += 4 * stride) {
+                const float_v tmp0 = one + float_v(&mem[i + 0 * stride]);
+                const float_v tmp1 = one + float_v(&mem[i + 1 * stride]);
+                const float_v tmp2 = one + float_v(&mem[i + 2 * stride]);
+                const float_v tmp3 = one + float_v(&mem[i + 3 * stride]);
+                tmp0.store(&mem[i + 0 * stride]);
+                tmp1.store(&mem[i + 1 * stride]);
+                tmp2.store(&mem[i + 2 * stride]);
+                tmp3.store(&mem[i + 3 * stride]);
+              }
+              for (; i < count; i += stride) {
+                const float_v tmp0 = one + float_v(&mem[i]);
+                tmp0.store(&mem[i]);
+              }
+            }
           }
+          tsc.stop();
+          double cycles = tsc.cycles();
+          cycles /= iterations * count;
+
+          std::cout << cpu << '\t' << count * sizeof(float) / 1024 << '\t' << cycles << '\t' << stride << '\n';
         }
       }
-      tsc.stop();
-      double cycles = tsc.cycles();
-      cycles /= iterations * count;
-
-      std::cout << cpu << '\t' << count * sizeof(float) / 1024 << '\t' << cycles << '\n';
     }
   }
 }
