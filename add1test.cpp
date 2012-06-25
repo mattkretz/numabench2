@@ -35,7 +35,7 @@ public:
 
 Add1Sweep::Add1Sweep()
 {
-  float *__restrict__ mem(new float[1024 * 1024 * 1024]);
+  float *__restrict__ mem = Vc::malloc<float, Vc::AlignOnPage>(1024 * 1024 * 1024);
   mlockall(MCL_CURRENT);
   const int maxThreadCount = ::maxThreadCount();
 
