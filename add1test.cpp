@@ -53,7 +53,7 @@ Add1Sweep::Add1Sweep()
   const float_v one(1.f);
 
   for (size_t count : counts) {
-    const int iterations = counts[3] / count;
+    const int iterations = *(std::end(counts) - 1) / count;
     for (int cpu = 0; cpu < maxThreadCount; ++cpu) {
       pinToCpu(cpu);
       tsc.start();
