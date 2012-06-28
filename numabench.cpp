@@ -306,20 +306,23 @@ static size_t largestMemorySize()/*{{{*/
     meminfo.close();
     return freeMem * 1024;
 }/*}}}*/
-struct TestDefaults/*{{{*/
+
+template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
 {
     /// in Bytes
-    static std::vector<size_t> sizes() { return { 1 * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
+    static constexpr size_t sliceSize() { return SliceSize * GiB; }
+    /// in Bytes
+    static std::vector<size_t> sizes() { return { sliceSize(), CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
     /// in #Scalars, wholeSize in Bytes
     static constexpr size_t offsetPerThread(size_t wholeSize) {
-        return 0;//wholeSize / (sizeof(Scalar) * 60); //< GiB ? 7 * ScalarsInCacheLine : 9 * ScalarsInPage;
+        return 1024 * 1024;//wholeSize / (sizeof(Scalar) * 60); //< GiB ? 7 * ScalarsInCacheLine : 9 * ScalarsInPage;
     }
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
     /// in #Scalars
     static constexpr size_t stride() { return GiB / sizeof(Scalar); }
 };/*}}}*/
-struct TestBzero : public TestDefaults/*{{{*/
+struct TestBzero : public TestDefaults<1>/*{{{*/
 {
     static constexpr const char *name() { return "bzero"; }
     static void run(const TestArguments &args)
@@ -334,9 +337,9 @@ struct TestBzero : public TestDefaults/*{{{*/
         args.timer->stop();
     }
 };/*}}}*/
-struct TestAddOneStrided : public TestDefaults/*{{{*/
+struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
 {
-    static std::vector<size_t> sizes() { return { 8 * GiB }; }
+    static std::vector<size_t> sizes() { return { sliceSize() }; }
     static constexpr const char *name() { return "add 1 w/ large strides"; }
     static constexpr double interpretFactor() { return 1./1024./sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Add"; }
@@ -379,7 +382,7 @@ struct TestAddOneStrided : public TestDefaults/*{{{*/
         }
     }
 };/*}}}*/
-struct TestAddOneStrided2 : public TestDefaults/*{{{*/
+struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
 {
     static std::vector<size_t> sizes() { return { 8 * GiB }; }
     static constexpr const char *name() { return "add 1 w/ optimized strides"; }
@@ -413,7 +416,7 @@ struct TestAddOneStrided2 : public TestDefaults/*{{{*/
         args.timer->stop();
     }
 };/*}}}*/
-template<bool Prefetch> struct TestAddOneBase : public TestDefaults/*{{{*/
+template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
 {
     static void run(const TestArguments &args)
     {
@@ -451,7 +454,7 @@ struct TestAddOnePrefetch : public TestAddOneBase<true>/*{{{*/
 {
     static constexpr const char *name() { return "add 1 w/ prefetch"; }
 };/*}}}*/
-template<bool Prefetch> struct TestReadBase : public TestDefaults/*{{{*/
+template<bool Prefetch> struct TestReadBase : public TestDefaults<1>/*{{{*/
 {
     static void run(const TestArguments &args)
     {
@@ -493,7 +496,7 @@ struct TestReadPrefetch : public TestReadBase<true>/*{{{*/
  * [                x                               x               ...]
  * [                        x                               x       ...]
  */
-struct TestReadLatency : public TestDefaults
+struct TestReadLatency : public TestDefaults<1>
 {
     static constexpr const char *name() { return "read latency"; }
     static constexpr double interpretFactor() { return 1. / VectorsInCacheLine; }
@@ -539,6 +542,7 @@ struct TestReadLatency : public TestDefaults
         args.timer->stop();
     }
 };/*}}}*/
+
 template<typename T> struct convertStringTo/*{{{*/
 {
     explicit convertStringTo(const std::string &s);
