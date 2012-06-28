@@ -610,60 +610,6 @@ static std::string prettyBytes(size_t bytes)/*{{{*/
 template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
 {
     m_threadPool.setTestFunction(&Test::run);
-    /*{{{
-    if (m_only.empty() || m_only == Test::name()) {
-        for (size_t offset = 0; offset + MemorySizeT <= m_memory->entriesCount(); offset += MemoryStepT) {
-            std::stringstream ss;
-            ss << Test::name() << ": " << offset * sizeof(Scalar) / GiB << " - "
-                << (offset + MemorySizeT) * sizeof(Scalar) / GiB;
-            {
-                Benchmark bench(ss.str().c_str(), MemorySize * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
-                Timer timer;
-                //for (int rep = 0; rep < 2; ++rep) {
-                    m_threadPool.executeWith(m_memory, [offset]() -> size_t { return offset; }, MemorySizeT, 1);
-                    Test::run({m_memory, &timer, offset, MemorySizeT, 1});
-                    m_threadPool.waitReady();
-                    m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
-                    bench.addTiming(timer);
-                //}
-                bench.Print();
-            }
-        }
-    }
-
-    size_t sizes[] = {
-        CpuId::L1Data(),
-        CpuId::L2Data(),
-        CpuId::L3Data()
-    };
-    for (int i = 0; i < 3; ++i) {
-        size_t size = sizes[i];
-        if (size > 0) {
-            size /= 2;
-            const size_t sizeT = size / sizeof(Scalar);
-            std::stringstream ss0;
-            ss0 << Test::name() << " (" << size / 1024 << "kB)";
-            if (m_only.empty() || m_only == ss0.str()) {
-                for (size_t offset = 0; offset + sizeT <= m_memory->entriesCount(); offset += MemoryStepT) {
-                    std::stringstream ss;
-                    ss << ss0.str();
-                    ss << ": " << offset * sizeof(Scalar) / GiB;
-                    const int repetitions = MemorySize / size;
-                    Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
-                    Timer timer;
-                    for (int rep = 0; rep < 2; ++rep) {
-                        size_t offset2 = offset;
-                        m_threadPool.executeWith(m_memory, [&offset2, sizeT] { return offset2 += sizeT; }, sizeT, repetitions);
-                        Test::run({m_memory, &timer, offset, sizeT, repetitions});
-                        m_threadPool.waitReady();
-                        m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
-                        bench.addTiming(timer);
-                    }
-                    bench.Print();
-                }
-            }
-        }
-    }*///}}}
     const size_t memorySizeT = m_memorySize * (GiB / sizeof(Scalar));
     Memory const memoryEnd = m_memory + memorySizeT;
     for (const size_t size : Test::sizes()) {
