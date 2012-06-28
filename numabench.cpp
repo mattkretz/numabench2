@@ -426,6 +426,7 @@ struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
 };/*}}}*/
 template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
 {
+    static constexpr double interpretFactor() { return 2.; } // every memory access is both load and store, thus twice the bandwidth
     static void run(const TestArguments &args)
     {
         const Vector one = Vector::One();
