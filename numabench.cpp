@@ -470,20 +470,27 @@ template<bool Prefetch> struct TestReadBase : public TestDefaults<1>/*{{{*/
 {
     static void run(const TestArguments &args)
     {
-        const Memory mStart[2] = { args.mem + args.offset, args.mem  };
-        const Memory mEnd  [2] = { args.mem + args.size  , mStart[0] };
+        const size_t offset = args.offset + args.size > sliceSizeT() ? args.offset : 0;
+        const MemoryRange mRange[2] = {
+            { args.mem + args.offset, args.size - offset },
+            { args.mem, offset }
+        };
         args.timer->start();
         for (int rep = 0; rep < args.repetitions; ++rep) {
             for (int i = 0; i < 2; ++i) {
-                for (Memory m = mStart[i] + 3 * Vector::Size; m < mEnd[i]; m += 4 * Vector::Size) {
+                for (Memory m = mRange[i].start + 7 * Vector::Size; m < mRange[i].end; m += 8 * Vector::Size) {
                     if (Prefetch) {
                         Vc::prefetchForOneRead(m + 4032 / sizeof(Scalar));
                     }
-                    const Vector v0(m - 3 * Vector::Size);
-                    const Vector v1(m - 2 * Vector::Size);
-                    const Vector v2(m - 1 * Vector::Size);
-                    const Vector v3(m - 0 * Vector::Size);
-                    asm("" :: "x"(v0.data()), "x"(v1.data()), "x"(v2.data()), "x"(v3.data()));
+                    const Vector v0(m - 7 * Vector::Size);
+                    const Vector v1(m - 6 * Vector::Size);
+                    const Vector v2(m - 5 * Vector::Size);
+                    const Vector v3(m - 4 * Vector::Size);
+                    const Vector v4(m - 3 * Vector::Size);
+                    const Vector v5(m - 2 * Vector::Size);
+                    const Vector v6(m - 1 * Vector::Size);
+                    const Vector v7(m - 0 * Vector::Size);
+                    Vc::forceToRegisters(v0, v1, v2, v3, v4, v5, v6, v7);
                 }
             }
         }
