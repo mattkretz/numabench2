@@ -64,6 +64,12 @@ struct CpuRange/*{{{*/
     int last;
     int step;
 };/*}}}*/
+inline std::ostream &operator<<(std::ostream &out, const CpuRange &range)/*{{{*/
+{
+    return out << "Range " << range.first << " - " << range.last << ", step " << range.step << '\n';
+}
+/*}}}*/
+
 class OneWaitsForN/*{{{*/
 {
 private:
@@ -296,16 +302,6 @@ public:
         }
     }
 };/*}}}*/
-static size_t largestMemorySize()/*{{{*/
-{
-    using namespace std;
-    fstream meminfo("/proc/meminfo", fstream::in);
-    string tmp;
-    size_t totalMem, freeMem;
-    meminfo >> tmp >> totalMem >> tmp >> tmp >> freeMem;
-    meminfo.close();
-    return freeMem * 1024;
-}/*}}}*/
 
 template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
 {
@@ -568,91 +564,6 @@ template<typename T> static T valueForArgument(const char *name, T defaultValue)
     }
     return defaultValue;
 }/*}}}*/
-/*SET_HELP_TEXT{{{*/
-#ifdef NO_LIBNUMA
-SET_HELP_TEXT(
-        "  --firstCpu <id>\n"
-        "  --cpuStep <id>\n"
-        "  --size <GiB>\n"
-        "  --only <test function>\n"
-        "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
-        );
-#else
-SET_HELP_TEXT(
-        "  --firstNode <id>\n"
-        "  --nodeStep <id>\n"
-        "  --size <GiB>\n"
-        "  --only <test function>\n"
-        "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
-        );
-#endif/*}}}*/
-class BenchmarkRunner/*{{{*/
-{
-private:
-    const std::vector<CpuRange> m_coreIds;
-    int m_threadCount;
-    ThreadPool m_threadPool;
-    const size_t m_maxMemorySize;
-    const size_t m_memorySize;
-    const std::string m_only;
-    Memory m_memory;
-
-    template<typename Test> void executeTest();
-    void executeAllTests();
-
-public:
-    BenchmarkRunner();
-};/*}}}*/
-static std::string prettyBytes(size_t bytes)/*{{{*/
-{
-    std::stringstream ss0;
-    constexpr char const *Prefix[] = { "", "Ki", "Mi", "Gi", "Ti" };
-    int prefixI = 0;
-    if (bytes != 0) {
-        while (bytes % 1024 == 0) {
-            bytes /= 1024;
-            ++prefixI;
-        }
-    }
-    ss0 << bytes << ' ' << Prefix[prefixI] << "B";
-    return ss0.str();
-}/*}}}*/
-template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
-{
-    m_threadPool.setTestFunction(&Test::run);
-    const size_t memorySizeT = m_memorySize * (GiB / sizeof(Scalar));
-    Memory const memoryEnd = m_memory + memorySizeT;
-    for (const size_t size : Test::sizes()) {
-        if (size == 0) {
-            continue;
-        }
-        const size_t sizeT = size / sizeof(Scalar);
-        std::stringstream ss0;
-        ss0 << Test::name() << " (" << prettyBytes(size) << ')';
-        if (m_only.empty() || m_only == ss0.str()) {
-            for (Memory m = m_memory; m + sizeT <= memoryEnd; m += Test::stride()) {
-                std::stringstream ss;
-                ss << ss0.str();
-                ss << " @ " << prettyBytes((m - m_memory) * sizeof(Scalar));
-                const int repetitions = std::max<int>(1, Test::stride() / sizeT);
-                Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
-                Timer timer;
-                size_t offset = 0;
-                m_threadPool.executeWith(m, [&offset, size] { return offset += Test::offsetPerThread(size); }, sizeT, repetitions);
-                Test::run({m, &timer, 0, sizeT, repetitions});
-                m_threadPool.waitReady();
-                bench.addTiming(timer);
-                m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
-                bench.Print();
-            }
-        }
-    }
-}/*}}}*/
-inline std::ostream &operator<<(std::ostream &out, const CpuRange &range)/*{{{*/
-{
-    return out << "Range " << range.first << " - " << range.last << ", step " << range.step << '\n';
-}
-/*}}}*/
 std::vector<CpuRange> parseOnlyCpus()/*{{{*/
 {
     enum State {
@@ -690,6 +601,97 @@ std::vector<CpuRange> parseOnlyCpus()/*{{{*/
     return r;
 }
 /*}}}*/
+static size_t largestMemorySize()/*{{{*/
+{
+    using namespace std;
+    fstream meminfo("/proc/meminfo", fstream::in);
+    string tmp;
+    size_t totalMem, freeMem;
+    meminfo >> tmp >> totalMem >> tmp >> tmp >> freeMem;
+    meminfo.close();
+    return freeMem * 1024;
+}/*}}}*/
+/*SET_HELP_TEXT{{{*/
+#ifdef NO_LIBNUMA
+SET_HELP_TEXT(
+        "  --firstCpu <id>\n"
+        "  --cpuStep <id>\n"
+        "  --size <GiB>\n"
+        "  --only <test function>\n"
+        "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
+        );
+#else
+SET_HELP_TEXT(
+        "  --firstNode <id>\n"
+        "  --nodeStep <id>\n"
+        "  --size <GiB>\n"
+        "  --only <test function>\n"
+        "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
+        );
+#endif/*}}}*/
+static std::string prettyBytes(size_t bytes)/*{{{*/
+{
+    std::stringstream ss0;
+    constexpr char const *Prefix[] = { "", "Ki", "Mi", "Gi", "Ti" };
+    int prefixI = 0;
+    if (bytes != 0) {
+        while (bytes % 1024 == 0) {
+            bytes /= 1024;
+            ++prefixI;
+        }
+    }
+    ss0 << bytes << ' ' << Prefix[prefixI] << "B";
+    return ss0.str();
+}/*}}}*/
+
+class BenchmarkRunner/*{{{*/
+{
+private:
+    const std::vector<CpuRange> m_coreIds;
+    int m_threadCount;
+    ThreadPool m_threadPool;
+    const size_t m_maxMemorySize;
+    const size_t m_memorySize;
+    const std::string m_only;
+    Memory m_memory;
+
+    template<typename Test> void executeTest();
+    void executeAllTests();
+
+public:
+    BenchmarkRunner();
+};/*}}}*/
+template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
+{
+    m_threadPool.setTestFunction(&Test::run);
+    const size_t memorySizeT = m_memorySize * (GiB / sizeof(Scalar));
+    Memory const memoryEnd = m_memory + memorySizeT;
+    for (const size_t size : Test::sizes()) {
+        if (size == 0) {
+            continue;
+        }
+        const size_t sizeT = size / sizeof(Scalar);
+        std::stringstream ss0;
+        ss0 << Test::name() << " (" << prettyBytes(size) << ')';
+        if (m_only.empty() || m_only == ss0.str()) {
+            for (Memory m = m_memory; m + sizeT <= memoryEnd; m += Test::stride()) {
+                std::stringstream ss;
+                ss << ss0.str();
+                ss << " @ " << prettyBytes((m - m_memory) * sizeof(Scalar));
+                const int repetitions = std::max<int>(1, Test::stride() / sizeT);
+                Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
+                Timer timer;
+                size_t offset = 0;
+                m_threadPool.executeWith(m, [&offset, size] { return offset += Test::offsetPerThread(size); }, sizeT, repetitions);
+                Test::run({m, &timer, 0, sizeT, repetitions});
+                m_threadPool.waitReady();
+                bench.addTiming(timer);
+                m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
+                bench.Print();
+            }
+        }
+    }
+}/*}}}*/
 BenchmarkRunner::BenchmarkRunner()/*{{{*/
     : m_coreIds(parseOnlyCpus()),
     m_threadCount(1),
