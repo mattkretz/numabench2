@@ -379,34 +379,40 @@ struct TestAddOneStrided : public TestDefaults/*{{{*/
         }
     }
 };/*}}}*/
-void testAddOneStrided2(const TestArguments &args)/*{{{*/
+struct TestAddOneStrided2 : public TestDefaults/*{{{*/
 {
-    //executeTest("add 1 nice strides" , &testAddOneStrided2, "Add" , 1. / sizeof(Scalar));
-    const Vector one(1);
-    Memory mStart = args.mem;
-    Memory const mEnd = mStart + args.size;
-    constexpr size_t Stride = (32 * 1024 + CacheLineSize) / sizeof(Scalar);
-    Memory mPartEnd = mStart + Stride;
-    const int repetitions = args.repetitions;
-    args.timer->start();
-    for (int rep = 0; rep < repetitions; ++rep) {
-        while (mPartEnd <= mEnd) {
-            for (Memory m = mStart + Vector::Size; m < mPartEnd; m += 2 * Vector::Size) {
-                const Vector tmp0 = Vector(m - 1 * Vector::Size) + one;
-                const Vector tmp1 = Vector(m - 0 * Vector::Size) + one;
-                const Vector tmp2 = Vector(m + Stride - 1 * Vector::Size) + one;
-                const Vector tmp3 = Vector(m + Stride - 0 * Vector::Size) + one;
-                tmp0.store(m - 1 * Vector::Size);
-                tmp1.store(m - 0 * Vector::Size);
-                tmp2.store(m + Stride - 1 * Vector::Size);
-                tmp3.store(m + Stride - 0 * Vector::Size);
+    static std::vector<size_t> sizes() { return { 8 * GiB }; }
+    static constexpr const char *name() { return "add 1 w/ optimized strides"; }
+    static constexpr double interpretFactor() { return 1./sizeof(Scalar); }
+    static constexpr const char *interpretUnit() { return "Add"; }
+    static void run(const TestArguments &args)
+    {
+        const Vector one(1);
+        Memory mStart = args.mem;
+        Memory const mEnd = mStart + args.size;
+        constexpr size_t Stride = (32 * 1024 + CacheLineSize) / sizeof(Scalar);
+        Memory mPartEnd = mStart + Stride;
+        const int repetitions = args.repetitions;
+        args.timer->start();
+        for (int rep = 0; rep < repetitions; ++rep) {
+            while (mPartEnd <= mEnd) {
+                for (Memory m = mStart + Vector::Size; m < mPartEnd; m += 2 * Vector::Size) {
+                    const Vector tmp0 = Vector(m - 1 * Vector::Size) + one;
+                    const Vector tmp1 = Vector(m - 0 * Vector::Size) + one;
+                    const Vector tmp2 = Vector(m + Stride - 1 * Vector::Size) + one;
+                    const Vector tmp3 = Vector(m + Stride - 0 * Vector::Size) + one;
+                    tmp0.store(m - 1 * Vector::Size);
+                    tmp1.store(m - 0 * Vector::Size);
+                    tmp2.store(m + Stride - 1 * Vector::Size);
+                    tmp3.store(m + Stride - 0 * Vector::Size);
+                }
+                mStart += 2 * Stride;
+                mPartEnd += 2 * Stride;
             }
-            mStart += 2 * Stride;
-            mPartEnd += 2 * Stride;
         }
+        args.timer->stop();
     }
-    args.timer->stop();
-}/*}}}*/
+};/*}}}*/
 template<bool Prefetch> struct TestAddOneBase : public TestDefaults/*{{{*/
 {
     static void run(const TestArguments &args)
