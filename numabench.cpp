@@ -316,8 +316,7 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static std::vector<size_t> sizes() { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
     /// in #Scalars, wholeSize in Bytes
     static constexpr size_t offsetPerThread(size_t wholeSize) {
-        return 9 * 1024 * 1024 / sizeof(Scalar) + 2 * ScalarsInCacheLine;
-        //wholeSize < GiB ? 7 * ScalarsInCacheLine : 9 * ScalarsInPage;
+        return wholeSize == sliceSizeT() * sizeof(Scalar) ? 0 : sliceSizeT() / 128 + 7 * ScalarsInCacheLine;
     }
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
