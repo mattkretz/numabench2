@@ -45,3 +45,6 @@ add_library(cpuset STATIC cpuset.c)
 
 add_executable(add1test add1test.cpp)
 target_link_libraries(add1test ${Vc_LIBRARIES} rt cpuset)
+
+add_executable(numabench numabench.cpp)
+target_link_libraries(numabench ${Vc_LIBRARIES} rt cpuset)
