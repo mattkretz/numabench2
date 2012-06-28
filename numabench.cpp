@@ -79,7 +79,7 @@ public:
     void oneReady()
     {
         if (busyCount-- == 1) {
-            //std::unique_lock<std::mutex> lock(mutex);
+            std::unique_lock<std::mutex> lock(mutex);
             wait.notify_one();
         }
     }
