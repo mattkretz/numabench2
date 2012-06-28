@@ -58,6 +58,11 @@ struct TestArguments/*{{{*/
     int repetitions;
 };/*}}}*/
 typedef void (*TestFunction)(const TestArguments &args);
+struct MemoryRange/*{{{*/
+{
+    MemoryRange(Memory s, size_t size) : start(s), end(start + size) {}
+    const Memory start, end;
+};/*}}}*/
 struct CpuRange/*{{{*/
 {
     int first;
@@ -305,13 +310,14 @@ public:
 
 template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
 {
+    /// in #Scalars
+    static constexpr size_t sliceSizeT() { return SliceSize * GiB / sizeof(Scalar); }
     /// in Bytes
-    static constexpr size_t sliceSize() { return SliceSize * GiB; }
-    /// in Bytes
-    static std::vector<size_t> sizes() { return { sliceSize(), CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
+    static std::vector<size_t> sizes() { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
     /// in #Scalars, wholeSize in Bytes
     static constexpr size_t offsetPerThread(size_t wholeSize) {
-        return 1024 * 1024;//wholeSize / (sizeof(Scalar) * 60); //< GiB ? 7 * ScalarsInCacheLine : 9 * ScalarsInPage;
+        return 9 * 1024 * 1024 / sizeof(Scalar) + 2 * ScalarsInCacheLine;
+        //wholeSize < GiB ? 7 * ScalarsInCacheLine : 9 * ScalarsInPage;
     }
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
@@ -323,19 +329,26 @@ struct TestBzero : public TestDefaults<1>/*{{{*/
     static constexpr const char *name() { return "bzero"; }
     static void run(const TestArguments &args)
     {
-        args.timer->start();
-        for (int rep = 0; rep < args.repetitions; ++rep) {
-            bzero(args.mem + args.offset, (args.size - args.offset) * sizeof(Scalar));
-            if (args.offset > 0) {
+        if (args.offset + args.size > sliceSizeT()) {
+            args.timer->start();
+            for (int rep = 0; rep < args.repetitions; ++rep) {
+                // TODO exchange the two? because bzero initializes backwards AFAIK
+                bzero(args.mem + args.offset, (args.size - args.offset) * sizeof(Scalar));
                 bzero(args.mem, args.offset * sizeof(Scalar));
             }
+            args.timer->stop();
+        } else {
+            args.timer->start();
+            for (int rep = 0; rep < args.repetitions; ++rep) {
+                bzero(args.mem + args.offset, args.size * sizeof(Scalar));
+            }
+            args.timer->stop();
         }
-        args.timer->stop();
     }
 };/*}}}*/
 struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
 {
-    static std::vector<size_t> sizes() { return { sliceSize() }; }
+    static std::vector<size_t> sizes() { return { 8 * GiB }; }
     static constexpr const char *name() { return "add 1 w/ large strides"; }
     static constexpr double interpretFactor() { return 1./1024./sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Add"; }
@@ -418,13 +431,16 @@ template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
     {
         const Vector one = Vector::One();
 
-        const Memory mStart[2] = { args.mem + args.offset, args.mem  };
-        const Memory mEnd  [2] = { args.mem + args.size  , mStart[0] };
+        const size_t offset = args.offset + args.size > sliceSizeT() ? args.offset : 0;
+        const MemoryRange mRange[2] = {
+            { args.mem + args.offset, args.size - offset },
+            { args.mem, offset }
+        };
 
         args.timer->start();
         for (int rep = 0; rep < args.repetitions; ++rep) {
             for (int i = 0; i < 2; ++i) {
-                for (Memory m = mStart[i] + 3 * Vector::Size; m < mEnd[i]; m += 4 * Vector::Size) {
+                for (Memory m = mRange[i].start + 3 * Vector::Size; m < mRange[i].end; m += 4 * Vector::Size) {
                     if (Prefetch) {
                         Vc::prefetchForModify(m + 4032 / sizeof(Scalar));
                     }
@@ -674,11 +690,11 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
         std::stringstream ss0;
         ss0 << Test::name() << " (" << prettyBytes(size) << ')';
         if (m_only.empty() || m_only == ss0.str()) {
-            for (Memory m = m_memory; m + sizeT <= memoryEnd; m += Test::stride()) {
+            for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride()) {
                 std::stringstream ss;
                 ss << ss0.str();
                 ss << " @ " << prettyBytes((m - m_memory) * sizeof(Scalar));
-                const int repetitions = std::max<int>(1, Test::stride() / sizeT);
+                const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
                 Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
                 Timer timer;
                 size_t offset = 0;
