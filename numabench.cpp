@@ -48,10 +48,7 @@ enum Constants {/*{{{*/
     VectorsInCacheLine = CacheLineSize / sizeof(Vector)
 };
 constexpr size_t GiB = 1024ull * 1024ull * 1024ull;
-constexpr size_t MemorySize = 8 * GiB;
-constexpr size_t MemoryStep = 1 * GiB;
-constexpr size_t MemorySizeT = MemorySize / sizeof(Scalar);
-constexpr size_t MemoryStepT = MemoryStep / sizeof(Scalar);/*}}}*/
+/*}}}*/
 struct TestArguments/*{{{*/
 {
     Memory mem;
