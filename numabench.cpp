@@ -82,15 +82,14 @@ public:
     void oneReady()
     {
         if (busyCount-- == 1) {
-            mutex.lock();
+            //std::unique_lock<std::mutex> lock(mutex);
             wait.notify_one();
-            mutex.unlock();
         }
     }
 
-    void oneBusy()
+    void setBusy(int count)
     {
-        busyCount++;
+        busyCount = count;
     }
 
     void waitForAll()
@@ -187,7 +186,6 @@ class ThreadData/*{{{*/
 
                 // wait for the signal to start
                 m_wait.wait(m_mutex);
-                m_waitForEnd.oneBusy();
 
                 if (m_exit) {
                     break;
@@ -233,6 +231,13 @@ public:
         m_waitForEnd.waitForAll();
     }
 
+    void wakeAllWorkers()
+    {
+        m_waitForEnd.waitForAll();
+        m_waitForEnd.setBusy(m_workers.size());
+        m_waitForStart.notify_all();
+    }
+
     /*void setPinning(int firstCpu)
     {
         for (size_t i = 0; i < m_workers.size(); ++i) {
@@ -255,8 +260,7 @@ public:
         for (; i < m_workers.size(); ++i) {
             m_workers[i]->disable();
         }
-        waitReady();
-        m_waitForStart.notify_all(); // have the threads call sched_setaffinity
+        wakeAllWorkers(); // have the threads call sched_setaffinity
     }
 
     void setTestFunction(TestFunction f)
@@ -272,7 +276,7 @@ public:
         for (auto &t : m_workers) {
             t->setParameters({ mem, nullptr, offset(), _size, repetitions });
         }
-        m_waitForStart.notify_all();
+        wakeAllWorkers();
     }
 
     template<typename F> void eachTimer(F f) const
@@ -616,7 +620,6 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
             ss << Test::name() << ": " << offset * sizeof(Scalar) / GiB << " - "
                 << (offset + MemorySizeT) * sizeof(Scalar) / GiB;
             {
-                m_threadPool.waitReady();
                 Benchmark bench(ss.str().c_str(), MemorySize * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
                 Timer timer;
                 //for (int rep = 0; rep < 2; ++rep) {
@@ -682,7 +685,6 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
                 Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
                 Timer timer;
                 size_t offset = 0;
-                m_threadPool.waitReady();
                 m_threadPool.executeWith(m, [&offset, size] { return offset += Test::offsetPerThread(size); }, sizeT, repetitions);
                 Test::run({m, &timer, 0, sizeT, repetitions});
                 m_threadPool.waitReady();
