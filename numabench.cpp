@@ -201,10 +201,7 @@ class ThreadData/*{{{*/
                     continue;
                 } else if (m_cpuId >= 0) {
                     // first pin the thread to a single core/cpu
-                    cpu_set_t cpumask;
-                    cpuZero(&cpumask);
-                    cpuSet(m_cpuId, &cpumask);
-                    sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
+                    pinToCpu(m_cpuId);
                     m_cpuId = -1;
                     continue;
                 }
@@ -750,8 +747,6 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
     if (!m_coreIds.empty()) {/*{{{*/
         Benchmark::addColumn("CPU_ID");
         for (auto cpuRange : m_coreIds) {
-            cpu_set_t cpumask;
-            sched_getaffinity(0, sizeof(cpu_set_t), &cpumask);
             const int cpuid = cpuRange.first;
             cpuRange.first += cpuRange.step;
             std::ostringstream str;
@@ -762,9 +757,7 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
                 ++m_threadCount;
             }
             Benchmark::setColumnData("CPU_ID", str.str());
-            cpuZero(&cpumask);
-            cpuSet(cpuid, &cpumask);
-            sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
+            pinToCpu(cpuid);
             m_threadPool.setPinning(cpuRange);
             executeAllTests();
         }
@@ -780,9 +773,7 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
         std::ostringstream str;
         str << cpuid;
         Benchmark::setColumnData("CPU_ID", str.str());
-        cpuZero(&cpumask);
-        cpuSet(cpuid, &cpumask);
-        sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
+        pinToCpu(cpuid);
         executeAllTests();
     }/*}}}*/
 #else/*{{{*/

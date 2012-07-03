@@ -46,3 +46,11 @@ void cpuSet(size_t id, cpu_set_t *mask)
     CPU_SET(id, mask);
 }
 
+void pinToCpu(size_t id)
+{
+    cpu_set_t cpumask;
+    CPU_ZERO(&cpumask);
+    CPU_SET(id, &cpumask);
+    sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
+    sched_yield();
+}

@@ -13,13 +13,6 @@ using namespace Vc;/*}}}*/
 using std::mutex;
 using std::unique_lock;
 
-static void pinToCpu(int id)
-{
-    cpu_set_t cpumask;
-    cpuZero(&cpumask);
-    cpuSet(id, &cpumask);
-    sched_setaffinity(0, sizeof(cpu_set_t), &cpumask);
-}
 static int maxThreadCount()
 {
     cpu_set_t cpumask;

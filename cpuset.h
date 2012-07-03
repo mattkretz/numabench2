@@ -30,6 +30,7 @@ int cpuIsSet(size_t cpucount, const cpu_set_t *cpumask);
 int cpuCount(const cpu_set_t *cpumask);
 void cpuZero(cpu_set_t *mask);
 void cpuSet(size_t id, cpu_set_t *mask);
+void pinToCpu(size_t id);
 
 #ifdef __cplusplus
 }
