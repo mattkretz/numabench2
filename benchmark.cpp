@@ -66,17 +66,14 @@ int main(int, char **argv)
   }
 
   timeval timeout;
-  for ( int i = 0; i < 3600; ++i ) {
-    timeout.tv_sec =  1;
-    timeout.tv_usec = 0;
-    select( 0, 0, 0, 0, &timeout );
-    if ( pid == waitpid( pid, 0, WNOHANG ) ) {
-      return 0;
-    }
+  int status = 0;
+  waitpid( pid, &status, 0 );
+  if (WIFSIGNALED(status)) {
+    printf("killed by signal %d\n", WTERMSIG(status));
   }
-
-  printf("%s took too long (> 1 h) and was killed\n", argv[0]);
-  kill( pid, SIGKILL );
-
-  return 0;
+  if (WIFEXITED(status)) {
+    return WEXITSTATUS(status);
+  }
+  fprintf(stderr, "unhandled exit condition\n");
+  return -1;
 }
