@@ -322,7 +322,7 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
     /// in #Scalars
-    static constexpr size_t stride() { return GiB / sizeof(Scalar); }
+    static constexpr size_t stride() { return 4 * GiB / sizeof(Scalar); }
 };/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
 {
