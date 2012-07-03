@@ -572,8 +572,8 @@ int main(int argc, char **argv)
 {
 #ifdef SCHED_FIFO_BENCHMARKS
     if (SCHED_FIFO != sched_getscheduler(0)) {
-        // not realtime priority, check whether the benchmark executable exists
-        execv("./benchmark", argv);
+        // not realtime priority, check whether the rtwrapper executable exists
+        execv("./rtwrapper", argv);
         // if the execv call works, great. If it doesn't we just continue, but without realtime prio
     }
 #endif

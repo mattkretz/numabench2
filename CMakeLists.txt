@@ -24,13 +24,13 @@ mark_as_advanced(HAVE_SYS_MMAN)
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
    set(REALTIME_BENCHMARKS FALSE CACHE BOOL "Use SCHED_FIFO priority to give benchmarks highest priority, achieving less jitter in the results.")
    if(REALTIME_BENCHMARKS)
-      add_executable(benchmark benchmark.cpp)
+      add_executable(rtwrapper rtwrapper.cpp)
       add_definitions(-DSCHED_FIFO_BENCHMARKS)
-      add_custom_command(TARGET benchmark POST_BUILD
-         COMMAND sudo chown root benchmark
-         COMMAND sudo chmod +s benchmark
+      add_custom_command(TARGET rtwrapper POST_BUILD
+         COMMAND sudo chown root rtwrapper
+         COMMAND sudo chmod +s rtwrapper
          WORKING_DIRECTORY "${CMAKE_CURRENT_BUILD_DIR}"
-         COMMENT "Making the benchmark helper suid root"
+         COMMENT "Making the rtwrapper helper suid root"
          )
    endif(REALTIME_BENCHMARKS)
 endif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
