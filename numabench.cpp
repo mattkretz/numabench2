@@ -323,6 +323,7 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static constexpr const char *interpretUnit() { return "Byte"; }
     /// in #Scalars
     static constexpr size_t stride() { return 4 * GiB / sizeof(Scalar); }
+    static constexpr const char *description() { return "undocumented"; }
 };/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
 {
@@ -344,6 +345,13 @@ struct TestBzero : public TestDefaults<1>/*{{{*/
             }
             args.timer->stop();
         }
+    }
+    static constexpr const char *description() { return
+        "The bzero benchmark simply calls bzero(3) for the given memory ranges.\n\n"
+        "A typical bzero implementation uses memset, which in turn should be implemented\n"
+        "to initialize memory with streaming stores, except for the first few kilobytes.\n"
+        "Interpretation of the bzero results is always dependent on the specific\n"
+        "implementation and thus should with great care.";
     }
 };/*}}}*/
 struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
@@ -389,6 +397,16 @@ struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
             }
             args.timer->stop();
         }
+    }
+    static constexpr const char *description() { return
+        "The add 1 w/ large strides benchmark tries to render the caches useless and thus\n"
+        "limit the bandwidth to some kind of worst-case scenario.\n\n"
+        "The benchmark modifies values in memory at strides of exactly the size of the L2\n"
+        "cache. Thus the L1/L2 caches can only store as many values as the associativity\n"
+        "of the cache allows. Typically this reduces the effective cache to the size of\n"
+        "8/12/16 cache lines (512/768/1024 Bytes). Subsequent memory reads have to wait\n"
+        "until the data in the cache has been evicted. Thus the latency of memory loads\n"
+        "(and NUMA interconnects) will show greatly in this benchmark.";
     }
 };/*}}}*/
 struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
@@ -642,6 +660,7 @@ static size_t largestMemorySize()/*{{{*/
 /*SET_HELP_TEXT{{{*/
 #ifdef NO_LIBNUMA
 SET_HELP_TEXT(
+        "  --listTests\n"
         "  --firstCpu <id>\n"
         "  --cpuStep <id>\n"
         "  --size <GiB>\n"
@@ -842,9 +861,36 @@ void BenchmarkRunner::executeAllTests()/*{{{*/
     Benchmark::finalize();
 }
 /*}}}*/
+template<typename Test> static void printDocumentation()/*{{{*/
+{
+    std::cout
+        << "********************************************************************************\n" << Test::name()
+        << "\n\n" << Test::description()
+        << "\n\nslice size: " << prettyBytes(Test::sliceSizeT() * sizeof(Scalar))
+        << "\n     sizes: ";
+    for (const size_t s : Test::sizes()) {
+        std::cout << prettyBytes(s) << ' ';
+    }
+    std::cout << "\n   offsets: ";
+    for (const size_t s : Test::offsetsPerThread()) {
+        std::cout << prettyBytes(s * sizeof(Scalar)) << ' ';
+    }
+    std::cout << "\n    stride: " << prettyBytes(Test::stride() * sizeof(Scalar)) << std::endl;
+}/*}}}*/
 int bmain()/*{{{*/
 {
     CpuId::init();
+    ArgumentVector::iterator it = std::find(g_arguments.begin(), g_arguments.end(), "--listTests");
+    if (it != g_arguments.end()) {
+        printDocumentation<TestBzero>();
+        printDocumentation<TestRead>();
+        printDocumentation<TestReadPrefetch>();
+        printDocumentation<TestAddOneStrided>();
+        printDocumentation<TestAddOne>();
+        printDocumentation<TestAddOnePrefetch>();
+        printDocumentation<TestReadLatency>();
+        return 0;
+    }
     BenchmarkRunner runner;
     return 0;
 }/*}}}*/
