@@ -612,7 +612,11 @@ std::vector<CpuRange> parseOnlyCpus()/*{{{*/
             state = ReadStep;
             range.step = 0;
         } else if (c == ',') {
-            state = ReadFirst;
+            if (state == ReadFirst) {
+                range.last = range.first;
+            } else {
+                state = ReadFirst;
+            }
             r.push_back(range);
             range = { 0, 0, 1 };
         }
