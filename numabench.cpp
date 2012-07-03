@@ -185,10 +185,16 @@ class ThreadData/*{{{*/
             data->mainLoop();
         }
 
+        void barrier()
+        {
+            // this function will block until/unless the mainLoop is in m_wait.wait
+            std::lock_guard<std::mutex> lock(m_mutex);
+        }
+
     private:
         void mainLoop() // thread
         {
-            m_mutex.lock();
+            std::lock_guard<std::mutex> lock(m_mutex);
             do {
                 m_waitForEnd.oneReady();
 
@@ -211,7 +217,6 @@ class ThreadData/*{{{*/
                 m_testFunction(m_arguments);
             } while (!m_exit);
             m_waitForEnd.oneReady();
-            m_mutex.unlock();
         }
 };/*}}}*/
 class ThreadPool/*{{{*/
@@ -240,6 +245,9 @@ public:
     {
         m_waitForEnd.waitForAll();
         m_waitForEnd.setBusy(m_workers.size());
+        for (auto &t : m_workers) {
+            t->barrier();
+        }
         m_waitForStart.notify_all();
     }
 
