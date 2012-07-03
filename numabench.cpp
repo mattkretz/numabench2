@@ -312,8 +312,12 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     /// in Bytes
     static std::vector<size_t> sizes() { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
     /// in #Scalars, wholeSize in Bytes
-    static constexpr size_t offsetPerThread(size_t wholeSize) {
-        return wholeSize == sliceSizeT() * sizeof(Scalar) ? 0 : sliceSizeT() / 128 + 7 * ScalarsInCacheLine;
+    static std::vector<size_t> offsetsPerThread(size_t wholeSize) {
+        return { 0,
+            CpuId::L1Data() / sizeof(Scalar),
+            sliceSizeT() / 128,
+            sliceSizeT() / 128 + 7 * ScalarsInCacheLine
+        };
     }
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
@@ -685,6 +689,12 @@ private:
 public:
     BenchmarkRunner();
 };/*}}}*/
+template<typename T> std::string toString(const T &x)/*{{{*/
+{
+    std::stringstream ss;
+    ss << x;
+    return ss.str();
+}/*}}}*/
 template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
 {
     m_threadPool.setTestFunction(&Test::run);
@@ -697,21 +707,26 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
         const size_t sizeT = size / sizeof(Scalar);
         std::stringstream ss0;
         ss0 << Test::name() << " (" << prettyBytes(size) << ')';
-        if (m_only.empty() || m_only == ss0.str()) {
+        const std::string benchName = ss0.str();
+        if (m_only.empty() || m_only == benchName) {
             for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride()) {
-                std::stringstream ss;
-                ss << ss0.str();
-                ss << " @ " << prettyBytes((m - m_memory) * sizeof(Scalar));
-                const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
-                Benchmark bench(ss.str().c_str(), size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
-                Timer timer;
-                size_t offset = 0;
-                m_threadPool.executeWith(m, [&offset, size] { return offset += Test::offsetPerThread(size); }, sizeT, repetitions);
-                Test::run({m, &timer, 0, sizeT, repetitions});
-                m_threadPool.waitReady();
-                bench.addTiming(timer);
-                m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
-                bench.Print();
+                for (const size_t offsetPerThread : Test::offsetsPerThread(size)) {
+                    Benchmark::setColumnData("offset per thread", toString(offsetPerThread));
+                    Benchmark::setColumnData("memory location", toString((m - m_memory) * sizeof(Scalar) / Test::stride()));
+                    const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
+                    Benchmark bench(benchName, size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
+                    Timer timer;
+                    size_t offset = 0;
+                    m_threadPool.executeWith(m, [&offset, size, offsetPerThread] { return offset += offsetPerThread; }, sizeT, repetitions);
+                    Test::run({m, &timer, 0, sizeT, repetitions});
+                    m_threadPool.waitReady();
+                    bench.addTiming(timer);
+                    m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
+                    bench.Print();
+                    if (m_threadCount == 1) {
+                        break; // with just a single thread, the thread offset makes no difference
+                    }
+                }
             }
         }
     }
@@ -724,6 +739,8 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
     m_only(valueForArgument("--only", std::string())),
     m_memory(nullptr)
 {
+    Benchmark::addColumn("memory location");
+    Benchmark::addColumn("offset per thread");
 #ifndef NO_LIBNUMA/*{{{*/
     if (numa_available() == -1) {
         std::cerr << "NUMA interface does not work. Abort." << std::endl;
