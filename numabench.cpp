@@ -712,7 +712,7 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
             for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride()) {
                 for (const size_t offsetPerThread : Test::offsetsPerThread(size)) {
                     Benchmark::setColumnData("offset per thread", toString(offsetPerThread));
-                    Benchmark::setColumnData("memory location", toString((m - m_memory) * sizeof(Scalar) / Test::stride()));
+                    Benchmark::setColumnData("memory location", toString((m - m_memory) / Test::stride()));
                     const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
                     Benchmark bench(benchName, size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
                     Timer timer;
