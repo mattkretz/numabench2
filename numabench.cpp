@@ -311,8 +311,8 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static constexpr size_t sliceSizeT() { return SliceSize * GiB / sizeof(Scalar); }
     /// in Bytes
     static std::vector<size_t> sizes() { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
-    /// in #Scalars, wholeSize in Bytes
-    static std::vector<size_t> offsetsPerThread(size_t wholeSize) {
+    /// in #Scalars
+    static std::vector<size_t> offsetsPerThread() {
         return { 0,
             CpuId::L1Data() / sizeof(Scalar),
             sliceSizeT() / 128,
@@ -710,7 +710,7 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
         const std::string benchName = ss0.str();
         if (m_only.empty() || m_only == benchName) {
             for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride()) {
-                for (const size_t offsetPerThread : Test::offsetsPerThread(size)) {
+                for (const size_t offsetPerThread : Test::offsetsPerThread()) {
                     Benchmark::setColumnData("offset per thread", toString(offsetPerThread));
                     Benchmark::setColumnData("memory location", toString((m - m_memory) / Test::stride()));
                     const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
