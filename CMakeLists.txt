@@ -14,6 +14,9 @@ if(NOT _yes)
    AddCompilerFlag("-std=c++0x")
 endif()
 
+# disable automatic addition of software prefetch instructions
+AddCompilerFlag("-fno-prefetch-loop-arrays")
+
 find_file(HAVE_SYS_MMAN sys/mman.h)
 if(NOT HAVE_SYS_MMAN)
    message(ERROR "could not find required sys/mman.h header to enable memlocking")
