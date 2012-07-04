@@ -61,7 +61,7 @@ int main(int, char **argv)
       perror( argv[0] );
       return -1;
     }
-    fprintf(stderr, "you need to make benchmark suid root\n");
+    fprintf(stderr, "you need to make rtwrapper suid root\n");
     return -1;
   }
 
