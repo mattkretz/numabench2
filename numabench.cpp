@@ -330,7 +330,7 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static constexpr double interpretFactor() { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
     /// in #Scalars
-    static constexpr size_t stride() { return 4 * GiB / sizeof(Scalar); }
+    static constexpr size_t stride() { return 1 * GiB / sizeof(Scalar); }
     static constexpr const char *description() { return "undocumented"; }
 };/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
@@ -865,7 +865,7 @@ void BenchmarkRunner::executeAllTests()/*{{{*/
     executeTest<TestAddOneStrided>();
     executeTest<TestAddOne>();
     executeTest<TestAddOnePrefetch>();
-    executeTest<TestReadLatency>();
+    //executeTest<TestReadLatency>();
     Benchmark::finalize();
 }
 /*}}}*/
@@ -896,7 +896,7 @@ int bmain()/*{{{*/
         printDocumentation<TestAddOneStrided>();
         printDocumentation<TestAddOne>();
         printDocumentation<TestAddOnePrefetch>();
-        printDocumentation<TestReadLatency>();
+        //printDocumentation<TestReadLatency>();
         return 0;
     }
     BenchmarkRunner runner;
