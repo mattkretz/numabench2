@@ -333,6 +333,53 @@ template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
     static constexpr size_t stride() { return 1 * GiB / sizeof(Scalar); }
     static constexpr const char *description() { return "undocumented"; }
 };/*}}}*/
+template<bool Streaming> struct TestWriteBase : public TestDefaults<1>/*{{{*/
+{
+    static constexpr const char *name() { return "write"; }
+    static void run(const TestArguments &args)
+    {
+        const size_t offset = args.offset + args.size > sliceSizeT() ? args.offset : 0;
+        const MemoryRange mRange[2] = {
+            { args.mem + args.offset, args.size - offset },
+            { args.mem, offset }
+        };
+        args.timer->start();
+        const Vector one = Vector::One();
+        for (int rep = 0; rep < args.repetitions; ++rep) {
+            for (int i = 0; i < 2; ++i) {
+                for (Memory m = mRange[i].start + 3 * Vector::Size; m < mRange[i].end; m += 4 * Vector::Size) {
+                    if (Streaming) {
+                        one.store(m - 3 * Vector::Size, Vc::Streaming);
+                        one.store(m - 2 * Vector::Size, Vc::Streaming);
+                        one.store(m - 1 * Vector::Size, Vc::Streaming);
+                        one.store(m - 0 * Vector::Size, Vc::Streaming);
+                    } else {
+                        one.store(m - 3 * Vector::Size);
+                        one.store(m - 2 * Vector::Size);
+                        one.store(m - 1 * Vector::Size);
+                        one.store(m - 0 * Vector::Size);
+                    }
+                }
+            }
+        }
+        args.timer->stop();
+    }
+    static constexpr const char *description() { return
+        "The write benchmark naïvely writes constant data over the given memory.\n\n"
+        "\n"
+        "\n"
+        "\n"
+        "";
+    }
+};/*}}}*/
+struct TestWrite : public TestWriteBase<false>/*{{{*/
+{
+    static constexpr const char *name() { return "write"; }
+};/*}}}*/
+struct TestStream : public TestWriteBase<true>/*{{{*/
+{
+    static constexpr const char *name() { return "stream"; }
+};/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
 {
     static constexpr const char *name() { return "bzero"; }
@@ -865,6 +912,8 @@ void BenchmarkRunner::executeAllTests()/*{{{*/
     executeTest<TestAddOneStrided>();
     executeTest<TestAddOne>();
     executeTest<TestAddOnePrefetch>();
+    executeTest<TestWrite>();
+    executeTest<TestStream>();
     //executeTest<TestReadLatency>();
     Benchmark::finalize();
 }
@@ -896,6 +945,8 @@ int bmain()/*{{{*/
         printDocumentation<TestAddOneStrided>();
         printDocumentation<TestAddOne>();
         printDocumentation<TestAddOnePrefetch>();
+        printDocumentation<TestWrite>();
+        printDocumentation<TestStream>();
         //printDocumentation<TestReadLatency>();
         return 0;
     }
