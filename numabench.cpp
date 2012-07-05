@@ -74,6 +74,12 @@ inline std::ostream &operator<<(std::ostream &out, const CpuRange &range)/*{{{*/
     return out << "Range " << range.first << " - " << range.last << ", step " << range.step << '\n';
 }
 /*}}}*/
+static int maxThreadCount()/*{{{*/
+{
+    cpu_set_t cpumask;
+    sched_getaffinity(0, sizeof(cpu_set_t), &cpumask);
+    return cpuCount(&cpumask);
+}/*}}}*/
 
 class OneWaitsForN/*{{{*/
 {
@@ -224,7 +230,6 @@ class ThreadPool/*{{{*/
     OneWaitsForN m_waitForEnd;
     std::condition_variable_any m_waitForStart;
     std::vector<std::shared_ptr<ThreadData>> m_workers;
-    static int maxThreadCount() { cpu_set_t cpumask; sched_getaffinity(0, sizeof(cpu_set_t), &cpumask); return cpuCount(&cpumask); }
 
 public:
     ThreadPool(int _size = maxThreadCount())
@@ -673,6 +678,7 @@ std::vector<CpuRange> parseOnlyCpus()/*{{{*/
     std::vector<CpuRange> r;
     CpuRange range = { 0, 0, 1 };
     State state = ReadFirst;
+    const int rangeMax = maxThreadCount();
     for (const auto &c : cpusStrings) {
         if (c >= '0' && c <= '9') {
             switch (state) {
@@ -696,6 +702,10 @@ std::vector<CpuRange> parseOnlyCpus()/*{{{*/
                 range.last = range.first;
             } else {
                 state = ReadFirst;
+            }
+            if (range.first < 0 || range.first >= rangeMax || range.last < range.first || range.last >= rangeMax) {
+                std::cerr << "invalid cores: " << range.first << '-' << range.last << std::endl;
+                std::exit(1);
             }
             r.push_back(range);
             range = { 0, 0, 1 };
@@ -909,7 +919,7 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
 }/*}}}*/
 void BenchmarkRunner::executeAllTests()/*{{{*/
 {
-    executeTest<TestBzero>();
+    //executeTest<TestBzero>();
     executeTest<TestRead>();
     executeTest<TestReadPrefetch>();
     executeTest<TestAddOneStrided>();
@@ -942,7 +952,7 @@ int bmain()/*{{{*/
     CpuId::init();
     ArgumentVector::iterator it = std::find(g_arguments.begin(), g_arguments.end(), "--listTests");
     if (it != g_arguments.end()) {
-        printDocumentation<TestBzero>();
+        //printDocumentation<TestBzero>();
         printDocumentation<TestRead>();
         printDocumentation<TestReadPrefetch>();
         printDocumentation<TestAddOneStrided>();
