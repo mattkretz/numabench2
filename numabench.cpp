@@ -364,21 +364,24 @@ template<bool Streaming> struct TestWriteBase : public TestDefaults<1>/*{{{*/
         }
         args.timer->stop();
     }
-    static constexpr const char *description() { return
-        "The write benchmark naïvely writes constant data over the given memory.\n\n"
-        "\n"
-        "\n"
-        "\n"
-        "";
-    }
 };/*}}}*/
 struct TestWrite : public TestWriteBase<false>/*{{{*/
 {
     static constexpr const char *name() { return "write"; }
+    static constexpr const char *description() { return
+        "The write benchmark naïvely writes constant data over the given memory.\n\n"
+        "Depending on the microarchitecture non-streaming writes require the memory\n"
+        "controller to issue loads before the stores, in order to initialize the cache\n"
+        "lines that will be overwritten.";
+    }
 };/*}}}*/
 struct TestStream : public TestWriteBase<true>/*{{{*/
 {
     static constexpr const char *name() { return "stream"; }
+    static constexpr const char *description() { return
+        "The stream benchmark writes constant data over the given memory using\n"
+        "non-temporal stores.\n";
+    }
 };/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
 {
