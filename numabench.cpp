@@ -906,7 +906,7 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
 }/*}}}*/
 void BenchmarkRunner::executeAllTests()/*{{{*/
 {
-    executeTest<TestBzero>();
+    //executeTest<TestBzero>();
     executeTest<TestRead>();
     executeTest<TestReadPrefetch>();
     executeTest<TestAddOneStrided>();
@@ -939,7 +939,7 @@ int bmain()/*{{{*/
     CpuId::init();
     ArgumentVector::iterator it = std::find(g_arguments.begin(), g_arguments.end(), "--listTests");
     if (it != g_arguments.end()) {
-        printDocumentation<TestBzero>();
+        //printDocumentation<TestBzero>();
         printDocumentation<TestRead>();
         printDocumentation<TestReadPrefetch>();
         printDocumentation<TestAddOneStrided>();
