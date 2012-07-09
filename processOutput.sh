@@ -28,8 +28,8 @@ sliceOneBenchmark() {
 
 sliceSubset() {
 	data="$1"
-	cores="$3"
-	offset="\"$4\""
+	cores="$2"
+	offset="\"$3\""
 	echo "$data" | grep -G '".*"'".${offset}.${cores}" | cut -f1,4 | sed 's/"//g'
 }
 
@@ -67,7 +67,7 @@ plots() {
 						echo "set title \"${benchmarkName//\"/}, Offset $o\""
 						for c in "${coresSubset[@]}"; do
 							test `coreCount "$c"` -eq 1 && o=0 # also plot single-threaded results on pages with offsets
-							subset="`sliceSubset "$data" "$benchmarkName" "$c" "$o"`"
+							subset="`sliceSubset "$data" "$c" "$o"`"
 							test -z "$subset" && continue
 							inlineData="${inlineData}${subset}
 e
