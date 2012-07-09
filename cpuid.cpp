@@ -79,6 +79,9 @@ int main(int argc, char **argv)
     printFeature(L1Data);
     printFeature(L2Data);
     printFeature(L3Data);
+    printFeature(L1Associativity);
+    printFeature(L2Associativity);
+    printFeature(L3Associativity);
     printFeature(L1InstructionLineSize);
     printFeature(L1DataLineSize);
     printFeature(L2DataLineSize);
