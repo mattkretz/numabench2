@@ -50,6 +50,9 @@ plots() {
 				offsets="`echo "$data"|cut -f2|tr -d \\"|sort -nu`"
 				cores="`echo "$data"|cut -f3|uniq`"
 				singleCores=(`echo "$cores"|grep -v ,`)
+				if [[ -z "$singleCores" ]]; then
+					singleCores=('".*"')
+				fi
 				case "$benchmarkName" in
 					"\"add 1 w/ large strides"*)
 						echo 'set ylabel "Add Operations [GFlop/s]"'
