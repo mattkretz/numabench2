@@ -419,7 +419,10 @@ struct TestBzero : public TestDefaults<1>/*{{{*/
 };/*}}}*/
 struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
 {
-    static std::vector<size_t> sizes() { return { 8 * GiB }; }
+    // In the "big test" iterate over 8 GiB with strides of the size of the L2 cache. For an L2
+    // cache of 2 MiB that results in just 4096 loads.
+    // In the "L3 test" the loads should be serviced by the L3 cache.
+    static std::vector<size_t> sizes() { return { 8 * GiB, CpuId::L3Data() }; }
     static constexpr const char *name() { return "add 1 w/ large strides"; }
     static constexpr double interpretFactor() { return 1./1024./sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Add"; }
