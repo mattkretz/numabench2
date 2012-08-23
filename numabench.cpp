@@ -25,10 +25,9 @@
 #include <mutex>
 #include <atomic>
 #include <Vc/cpuid.h>
-#define NO_LIBNUMA 1
-#ifdef NO_LIBNUMA
 #include "cpuset.h"
-#else
+#ifndef NO_LIBNUMA
+#include "numaif.h"
 #include "numa.h"
 #endif
 
