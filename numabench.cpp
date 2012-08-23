@@ -859,16 +859,16 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
             }
             mbindMask[0] = 1 << i;
             //std::cerr << "calling mbind(" << (void*)addr << ", 0x"
-            //          << std::hex << bindStride << std::dec << ", MPOL_BIND, "
-            //          << mbindMask << ", " << std::min(2ul, maxnode)
+            //          << std::hex << bindStride << ", MPOL_BIND, 0x"
+            //          << mbindMask[0] << std::dec << ", " << std::max(2ul, maxnode)
             //          << ", MPOL_MF_STRICT | MPOL_MF_MOVE)\n";
             if (-1 == mbind(addr, bindStride, MPOL_BIND, &mbindMask[0],
-                        std::min(2ul, maxnode), MPOL_MF_STRICT | MPOL_MF_MOVE)) {
+                        std::max(2ul, maxnode), MPOL_MF_STRICT | MPOL_MF_MOVE)) {
                 std::cerr << "mbind failed for node " << i << " of " <<
                    maxnode - 1 << " with " << strerror(errno) << std::endl;
                 return;
             } else {
-                std::cout << "pinned " << bindStride << " Bytes of memory to NUMA node " << i << std::endl;
+                std::cout << "pinned " << bindStride << " Bytes (" << (bindStride >> 30) << " GiB) of memory to NUMA node " << i << std::endl;
             }
             addr += bindStride;
         }
