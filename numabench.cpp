@@ -926,27 +926,9 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
     // node: an area where all memory as the same speed as seen from a particular CPU. A node
     //       can contain multiple CPUs
     // cpu: a hardware thread?
-    int nodeCount = numa_max_node();
-    struct bitmask *nodemask = 0;
-    if (nodeCount < 0) {
-        std::cerr << "libnuma does not report any NUMA nodes\n";
-        nodeCount = 0;
-    } else {
-        nodemask = numa_allocate_nodemask();
-    }
-    Benchmark::addColumn("NUMA_ID");
-    for (int numaId = valueForArgument("--firstNode", 0); numaId <= nodeCount; numaId += valueForArgument("--nodeStep", 1)) {
-        std::ostringstream str;
-        str << numaId;
-        Benchmark::setColumnData("NUMA_ID", str.str());
-
-        if (nodemask) {
-            numa_bitmask_clearall(nodemask);
-            numa_bitmask_setbit(nodemask, numaId);
-            numa_bind(nodemask);
-        }
-        executeAllTests();
-    }
+    // TODO: A smart pinning will look at several core combinations per NUMA node.
+    std::cerr << "automatic core pinning according to NUMA information is not yet implemented.\n";
+    return;
 #endif/*}}}*/
 #ifndef NO_LIBNUMA/*{{{*/
     if (nodemask) {
