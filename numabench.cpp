@@ -727,25 +727,14 @@ static size_t largestMemorySize()/*{{{*/
     meminfo.close();
     return freeMem * 1024;
 }/*}}}*/
-/*SET_HELP_TEXT{{{*/
-#ifdef NO_LIBNUMA
-SET_HELP_TEXT(
+SET_HELP_TEXT(/*{{{*/
         "  --listTests\n"
         "  --firstCpu <id>\n"
         "  --cpuStep <id>\n"
         "  --size <GiB>\n"
         "  --only <test function>\n"
         "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
-        );
-#else
-SET_HELP_TEXT(
-        "  --firstNode <id>\n"
-        "  --nodeStep <id>\n"
-        "  --size <GiB>\n"
-        "  --only <test function>\n"
-        "  --cores <firstId-lastId[:step][,firstId-lastId[:step][...]]>\n"
-        );
-#endif/*}}}*/
+        );/*}}}*/
 static std::string prettyBytes(size_t bytes)/*{{{*/
 {
     std::stringstream ss0;
@@ -838,10 +827,6 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
 #ifdef LINK_STATICALLY
     numa_init();
 #endif
-
-    // first make sure we don't get interleaved memory; this would defeat the purpose of this
-    // benchmark
-    //numa_set_interleave_mask(numa_no_nodes);
 #endif/*}}}*/
 
     if (m_memorySize < 1) {/*{{{*/
@@ -852,6 +837,56 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
         std::cerr << "Not enough memory available. Expect crashes/OOM kills." << std::endl;
     }/*}}}*/
     m_memory = Vc::malloc<Scalar, Vc::AlignOnPage>(m_memorySize * GiB / sizeof(Scalar));
+#ifndef NO_LIBNUMA/*: mbind {{{*/
+    struct bitmask *nodemask = numa_get_mems_allowed();
+    std::cerr << " numa_max_node: " << numa_max_node()
+        << "\n numa_max_possible_node: " << numa_max_possible_node()
+        << "\n numa_num_configured_nodes: " << numa_num_configured_nodes()
+        << "\n numa_num_configured_cpus: " << numa_num_configured_cpus()
+        << "\n numa_preferred: " << numa_preferred()
+        << "\n numa_pagesize: " << numa_pagesize()
+        << "\n numa_get_mems_allowed: " << nodemask->maskp[0]
+        << std::endl;
+    char *addr = reinterpret_cast<char *>(m_memory);
+    char *const endAddr = addr + (m_memorySize * GiB);
+    const unsigned long maxnode = numa_max_node() + 1;
+    size_t bindStride = std::max(1ul, m_memorySize / maxnode) * GiB;
+    unsigned long mbindMask[2] = { 0ul, 0ul };
+    for (size_t i = 0; i < maxnode; ++i) {
+        if (numa_bitmask_isbitset(nodemask, i)) {
+            if (addr + bindStride > endAddr) {
+                bindStride = endAddr - addr;
+            }
+            mbindMask[0] = 1 << i;
+            //std::cerr << "calling mbind(" << (void*)addr << ", 0x"
+            //          << std::hex << bindStride << std::dec << ", MPOL_BIND, "
+            //          << mbindMask << ", " << std::min(2ul, maxnode)
+            //          << ", MPOL_MF_STRICT | MPOL_MF_MOVE)\n";
+            if (-1 == mbind(addr, bindStride, MPOL_BIND, &mbindMask[0],
+                        std::min(2ul, maxnode), MPOL_MF_STRICT | MPOL_MF_MOVE)) {
+                std::cerr << "mbind failed for node " << i << " of " <<
+                   maxnode - 1 << " with " << strerror(errno) << std::endl;
+                return;
+            } else {
+                std::cout << "pinned " << bindStride << " Bytes of memory to NUMA node " << i << std::endl;
+            }
+            addr += bindStride;
+        }
+    }
+    /*
+       EINVAL An invalid value was specified for flags or mode;
+              or addr + len was less than addr;
+              or addr is not a multiple of the system page size.
+              Or, mode is MPOL_DEFAULT and nodemask specified a nonempty set;
+              Or, maxnode exceeds a kernel-imposed limit.
+              Or, the mode argument specified both MPOL_F_STATIC_NODES and MPOL_F_RELATIVE_NODES.
+
+              or mode is MPOL_BIND or MPOL_INTERLEAVE and nodemask is empty.
+              Or, nodemask specifies one or more node IDs that are greater than the maximum supported node ID.
+              Or, none of the node IDs specified by nodemask are on-line and allowed by the process's current cpuset context,
+              or none of the specified nodes contain memory.
+    */
+#endif/*}}}*/
     mlockall(MCL_CURRENT);
 
     if (!m_coreIds.empty()) {/*{{{*/
