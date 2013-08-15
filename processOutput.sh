@@ -15,8 +15,9 @@ if ! which gawk >/dev/null 2>&1; then
 	fatal "you need to have 'gawk' in your PATH"
 fi
 
+plot=gnuplot
 if ! which gnuplot >/dev/null 2>&1; then
-	fatal "you need to have 'gnuplot' in your PATH"
+	plot=cat
 fi
 
 input="$1"
@@ -93,7 +94,7 @@ e
 
 #plots; exit
 
-gnuplot <<EOF
+$plot <<EOF
 set style line  1 lc rgbcolor "#CCCCCC"
 set grid y ls 1
 set grid x ls 1
