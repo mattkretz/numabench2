@@ -14,6 +14,9 @@ if(NOT _yes)
    AddCompilerFlag("-std=c++0x")
 endif()
 
+# need pthreads
+AddCompilerFlag(-pthread)
+
 # disable automatic addition of software prefetch instructions
 AddCompilerFlag("-fno-prefetch-loop-arrays")
 
