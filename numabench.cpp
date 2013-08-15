@@ -23,6 +23,7 @@
 #include <fstream>
 #include <thread>
 #include <mutex>
+#include <condition_variable>
 #include <atomic>
 #include <Vc/cpuid.h>
 #define NO_LIBNUMA 1
