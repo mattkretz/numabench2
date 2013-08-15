@@ -234,15 +234,17 @@ void Benchmark::FileWriter::addDataLine(const std::list<std::string> &data)
     case Vc::SSE41Impl:  m_file << "SSE4.1"; break;
     case Vc::SSE42Impl:  m_file << "SSE4.2"; break;
     case Vc::AVXImpl:    m_file << "AVX";    break;
-    case Vc::AVX2Impl:    m_file << "AVX2";  break;
+    case Vc::AVX2Impl:   m_file << "AVX2";   break;
     }
 
-    const auto extraInstructions = static_cast<Vc::ExtraInstructions>(Vc::CurrentImplementation::ExtraInstructions);
-    if (extraInstructions & Vc::Sse4aInstructions ) m_file << "+SSE4a";
-    if (extraInstructions & Vc::XopInstructions   ) m_file << "+XOP";
-    if (extraInstructions & Vc::Fma4Instructions  ) m_file << "+FMA4";
-    if (extraInstructions & Vc::PopcntInstructions) m_file << "+POPCNT";
-    if (extraInstructions & Vc::FmaInstructions   ) m_file << "+FMA";
+    // The following extra features are not really important for the NUMA benchmark, so just leave
+    // them out
+    //const auto extraInstructions = static_cast<Vc::ExtraInstructions>(Vc::CurrentImplementation::ExtraInstructions);
+    //if (extraInstructions & Vc::Sse4aInstructions ) m_file << "+SSE4a";
+    //if (extraInstructions & Vc::XopInstructions   ) m_file << "+XOP";
+    //if (extraInstructions & Vc::Fma4Instructions  ) m_file << "+FMA4";
+    //if (extraInstructions & Vc::PopcntInstructions) m_file << "+POPCNT";
+    //if (extraInstructions & Vc::FmaInstructions   ) m_file << "+FMA";
     m_file << '"';
 
     for (std::list<ExtraColumn>::const_iterator i = m_extraColumns.begin();
