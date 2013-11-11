@@ -43,7 +43,7 @@ int main(int argc, char **argv)
     printFeature(hasSse3);
     printFeature(hasVmx);
     printFeature(hasSmx);
-    printFeature(hasEst);
+    printFeature(hasEist);
     printFeature(hasTm2);
     printFeature(hasSsse3);
     printFeature(hasPdcm);
