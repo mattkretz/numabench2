@@ -229,7 +229,7 @@ class ThreadPool/*{{{*/
 {
     OneWaitsForN m_waitForEnd;
     std::condition_variable_any m_waitForStart;
-    std::vector<std::shared_ptr<ThreadData>> m_workers;
+    std::vector<std::unique_ptr<ThreadData>> m_workers;
 
 public:
     ThreadPool(int _size = maxThreadCount())
@@ -237,7 +237,7 @@ public:
         m_workers(_size)
     {
         for (int i = 0; i < _size; ++i) {
-            m_workers[i] = std::make_shared<ThreadData>(&m_waitForEnd, &m_waitForStart);
+            m_workers[i].reset(new ThreadData(&m_waitForEnd, &m_waitForStart));
         }
     }
 
