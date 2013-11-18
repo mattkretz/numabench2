@@ -204,8 +204,15 @@ class ThreadData/*{{{*/
             do {
                 m_waitForEnd.oneReady();
 
-                // wait for the signal to start
-                m_wait.wait(m_mutex);
+                try {
+                    // wait for the signal to start
+                    m_wait.wait(m_mutex);
+                } catch (std::system_error err) {
+                    std::stringstream s;
+                    s << "system error with code: " << err.code() << " meaning " << err.code().message() << '\n';
+                    std::cerr << s.str();
+                    break;
+                }
 
                 if (m_exit) {
                     break;
@@ -217,7 +224,6 @@ class ThreadData/*{{{*/
                     m_cpuId = -1;
                     continue;
                 }
-
 
                 // do the work
                 m_testFunction(m_arguments);
