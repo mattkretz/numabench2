@@ -591,10 +591,9 @@ struct TestReadPrefetch : public TestReadBase<true>/*{{{*/
     static constexpr const char *name() { return "read w/ prefetch"; }
 };/*}}}*/
 /** testReadLatency {{{
- * We want to measure the latency of a read from memory. To achieve this we read with a stride of
- * PageSize bytes. Then the hardware prefetcher will not do any prefetches and every load will hit a
- * cold cache line. To increase the working size the test then starts over but with an offset of one
- * cache line:
+ * We want to measure the latency of a read from memory. To achieve this we read a value from memory
+ * which determines the next memory address. Thus, the full memory fetch latency is incurred before
+ * the next load can be issued.
  * [x                               x                               ...]
  * [        x                               x                       ...]
  * [                x                               x               ...]
@@ -607,6 +606,8 @@ struct TestReadLatency : public TestDefaults<1>
     static constexpr const char *interpretUnit() { return "Read"; }
     static void run(const TestArguments &args)
     {
+        // TODO: fill the memory with offsets
+
         Memory const mStart = args.mem;
         Memory const mEnd = mStart + args.size;
         Memory const mPageEnd = mStart + ScalarsInPage;
