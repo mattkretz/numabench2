@@ -298,7 +298,7 @@ Benchmark::Benchmark(const std::string &_name, double factor, const std::string 
         char header[128 * WCHARSIZE];
         std::memset(header, 0, 128 * WCHARSIZE);
         std::strcpy(header,
-                "┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓");
+                "┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓");
         if (!interpret) {
             header[(69 - 17) * WCHARSIZE] = '\0';
         }
@@ -439,7 +439,7 @@ inline void Benchmark::printMiddleLine() const
     std::cout << "\n"
         "┠────────────────╂────────────────"
         << (interpret ?
-                "╂────────────────╂────────────────╂────────────────┨" : "┨");
+                "╂────────────────╂────────────────╂────────────────╂────────────────┨" : "┨");
 }
 inline void Benchmark::printBottomLine() const
 {
@@ -447,7 +447,7 @@ inline void Benchmark::printBottomLine() const
     std::cout << "\n"
         "┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━"
         << (interpret ?
-                "┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┛" : "┛") << std::endl;
+                "┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┛" : "┛") << std::endl;
 }
 
 inline void Benchmark::addTiming(const Timer &t) {
@@ -477,6 +477,7 @@ inline void Benchmark::Print()
         << "┃   Real time    ┃     Cycles     ┃";
     if (interpret) {
         std::cout << centered(fX + "/s [Real]") << "┃";
+        std::cout << centered("s/" + fX + " [Real]") << "┃";
         std::cout << centered(fX + "/cycle")    << "┃";
         std::cout << centered("cycles/" + fX)   << "┃";
         std::string X = fX;
@@ -515,27 +516,33 @@ inline void Benchmark::Print()
     prettyPrintSeconds(m_mean[0]);
     std::cout << " ┃ ";
     prettyPrintCount(m_mean[1]);
-    std::cout << " ┃ ";
+    std::cout << " ┃";
     if (interpret) {
+        std::cout << ' ';
         prettyPrintCount(fFactor / m_mean[0]);
+        std::cout << " ┃ ";
+        prettyPrintSeconds(m_mean[0] / fFactor);
         std::cout << " ┃ ";
         prettyPrintCount(fFactor / m_mean[1]);
         std::cout << " ┃ ";
         prettyPrintCount(m_mean[1] / fFactor);
-        std::cout << " ┃ ";
+        std::cout << " ┃";
     }
     std::cout << "\n┃ ";
     prettyPrintError(m_stddev[0] * 100. / m_mean[0]);
     std::cout << " ┃ ";
     prettyPrintError(m_stddev[1] * 100. / m_mean[1]);
-    std::cout << " ┃ ";
+    std::cout << " ┃";
     if (interpret) {
+        std::cout << ' ';
+        prettyPrintError(m_stddev[0] * 100. / m_mean[0]);
+        std::cout << " ┃ ";
         prettyPrintError(m_stddev[0] * 100. / m_mean[0]);
         std::cout << " ┃ ";
         prettyPrintError(m_stddev[1] * 100. / m_mean[1]);
         std::cout << " ┃ ";
         prettyPrintError(m_stddev[1] * 100. / m_mean[1]);
-        std::cout << " ┃ ";
+        std::cout << " ┃";
     }
     printBottomLine();
     if (s_fileWriter) {
