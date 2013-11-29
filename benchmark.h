@@ -320,7 +320,7 @@ Benchmark::Benchmark(const std::string &_name, double factor, const std::string 
 
 static inline void prettyPrintSeconds(double v)
 {
-    static const char prefix[] = { ' ', 'm', 'u', 'n', 'p' };
+    static const char prefix[] = { ' ', 'm', 'u', 'n', 'p', 'f' };
     if (v == 0.) {
         std::cout << "      0       ";
     } else if (v < 2.) {
