@@ -955,7 +955,10 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
         std::cerr << "Not enough memory available. Expect crashes/OOM kills." << std::endl;
     }/*}}}*/
     m_memory = Vc::malloc<Scalar, Vc::AlignOnPage>(m_memorySize * GiB / sizeof(Scalar));
-    mlockall(MCL_CURRENT);
+    if (0 == mlockall(MCL_CURRENT)) {
+        std::cerr << "mlockall failed. Using memset instead.\n";
+    }
+    memset(m_memory, 0, m_memorySize * GiB);
 
     if (!m_coreIds.empty()) {/*{{{*/
         Benchmark::addColumn("CPU_ID");
