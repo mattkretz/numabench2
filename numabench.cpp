@@ -1029,13 +1029,14 @@ void BenchmarkRunner::executeAllTests()/*{{{*/
 {
     //executeOneTest<TestBzero>();
     executeOneTest<TestRead>();
+    executeOneTest<TestIndependentRead>();
     executeOneTest<TestReadPrefetch>();
     executeOneTest<TestAddOneStrided>();
     executeOneTest<TestAddOne>();
     executeOneTest<TestAddOnePrefetch>();
     executeOneTest<TestWrite>();
     executeOneTest<TestStream>();
-    //executeOneTest<TestReadLatency>();
+    executeOneTest<TestReadLatency>();
     Benchmark::finalize();
 }
 /*}}}*/
@@ -1062,13 +1063,14 @@ int bmain()/*{{{*/
     if (it != g_arguments.end()) {
         //printDocumentation<TestBzero>();
         printDocumentation<TestRead>();
+        printDocumentation<TestIndependentRead>();
         printDocumentation<TestReadPrefetch>();
         printDocumentation<TestAddOneStrided>();
         printDocumentation<TestAddOne>();
         printDocumentation<TestAddOnePrefetch>();
         printDocumentation<TestWrite>();
         printDocumentation<TestStream>();
-        //printDocumentation<TestReadLatency>();
+        printDocumentation<TestReadLatency>();
         return 0;
     }
     BenchmarkRunner runner;
