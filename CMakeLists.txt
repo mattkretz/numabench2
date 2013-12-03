@@ -6,7 +6,7 @@ endif()
 
 project(numabench2)
 
-find_package(Vc 0.6.70 REQUIRED)
+find_package(Vc 0.7.0 REQUIRED)
 
 # We want C++11 code
 AddCompilerFlag("-std=c++11" _yes)
