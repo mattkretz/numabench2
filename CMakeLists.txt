@@ -63,7 +63,7 @@ add_executable(add1test add1test.cpp)
 target_link_libraries(add1test ${Vc_LIBRARIES} rt cpuset)
 
 add_executable(numabench numabench.cpp)
-set_target_properties(numabench PROPERTIES COMPILE_FLAGS ${no_prefetch})
+set_target_properties(numabench PROPERTIES COMPILE_FLAGS "${no_prefetch}")
 target_link_libraries(numabench ${Vc_LIBRARIES} rt cpuset)
 
 if(MIC_NATIVE_FOUND)
