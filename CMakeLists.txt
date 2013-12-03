@@ -13,14 +13,21 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 find_package(Vc 0.7.0 REQUIRED)
+if(Vc_VERSION VERSION_LESS 0.99.0)
+   AddCompilerFlag("-std=c++11" CXX_RESULT _yes)
+   if(NOT _yes)
+      AddCompilerFlag("-std=c++0x")
+   else()
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+   endif()
+else()
+   list(APPEND CMAKE_MODULE_PATH "${Vc_CMAKE_MODULES_DIR}")
+   find_package(MIC)
 
-list(APPEND CMAKE_MODULE_PATH "${Vc_CMAKE_MODULES_DIR}")
-find_package(MIC)
-
-# We want C++11 code
-AddCompilerFlag("-std=c++11" CXX_RESULT _yes CXX_FLAGS CMAKE_CXX_FLAGS MIC_CXX_FLAGS VC_MIC_CXX_FLAGS)
-if(NOT _yes)
-   AddCompilerFlag("-std=c++0x")
+   AddCompilerFlag("-std=c++11" CXX_RESULT _yes CXX_FLAGS CMAKE_CXX_FLAGS MIC_CXX_FLAGS VC_MIC_CXX_FLAGS)
+   if(NOT _yes)
+      AddCompilerFlag("-std=c++0x")
+   endif()
 endif()
 
 # need pthreads
