@@ -325,20 +325,24 @@ template<size_t SliceSize_ = 1> struct TestDefaults/*{{{*/
     /// in #Scalars
     static constexpr size_t sliceSizeT() { return SliceSize * GiB / sizeof(Scalar); }
     /// in Bytes
-    static std::vector<size_t> sizes() { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
+    static std::vector<size_t> sizes(int /*threadCount*/) { return { SliceSize * GiB, CpuId::L3Data() / 2, CpuId::L2Data() / 2, CpuId::L1Data() / 2 }; }
     /// in #Scalars
-    static std::vector<size_t> offsetsPerThread() {
+    static std::vector<size_t> offsetsPerThread(int /*threadCount*/) {
         return { 0,
             CpuId::L1Data() / sizeof(Scalar),
             sliceSizeT() / 128,
             sliceSizeT() / 128 + 7 * ScalarsInCacheLine
         };
     }
-    static constexpr double interpretFactor() { return 1.; }
+    static constexpr double interpretFactor(int /*threadCount*/) { return 1.; }
     static constexpr const char *interpretUnit() { return "Byte"; }
     /// in #Scalars
     static constexpr size_t stride() { return 1 * GiB / sizeof(Scalar); }
     static constexpr const char *description() { return "undocumented"; }
+    static bool skipConfiguration(size_t size, size_t /*offset*/, int sliceIndex, int threadCount) {
+        return size <= std::max(CpuId::L3Data(), CpuId::L2Data()) && sliceIndex > 0;
+    }
+    static void prepareMemory(const TestArguments &, int /*threadId*/) {}
 };/*}}}*/
 template<bool Streaming> struct TestWriteBase : public TestDefaults<1>/*{{{*/
 {
@@ -389,6 +393,7 @@ struct TestStream : public TestWriteBase<true>/*{{{*/
         "The stream benchmark writes constant data over the given memory using\n"
         "non-temporal stores.\n";
     }
+    static bool skipConfiguration(size_t size, size_t /*offset*/, int /*sliceIndex*/, int /*threadCount*/) { return size <= CpuId::L2Data(); }
 };/*}}}*/
 struct TestBzero : public TestDefaults<1>/*{{{*/
 {
@@ -418,12 +423,13 @@ struct TestBzero : public TestDefaults<1>/*{{{*/
         "Interpretation of the bzero results is always dependent on the specific\n"
         "implementation and thus should with great care.";
     }
+    static bool skipConfiguration(size_t size, size_t /*offset*/, int /*sliceIndex*/, int /*threadCount*/) { return size <= CpuId::L2Data(); }
 };/*}}}*/
 struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
 {
-    static std::vector<size_t> sizes() { return { 8 * GiB }; }
+    static std::vector<size_t> sizes(int /*threadCount*/) { return { 8 * GiB }; }
     static constexpr const char *name() { return "add 1 w/ large strides"; }
-    static constexpr double interpretFactor() { return 1./1024./sizeof(Scalar); }
+    static constexpr double interpretFactor(int /*threadCount*/) { return 1./1024./sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Add"; }
     static void run(const TestArguments &args)
     {
@@ -476,9 +482,9 @@ struct TestAddOneStrided : public TestDefaults<8>/*{{{*/
 };/*}}}*/
 struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
 {
-    static std::vector<size_t> sizes() { return { 8 * GiB }; }
+    static std::vector<size_t> sizes(int /*threadCount*/) { return { 8 * GiB }; }
     static constexpr const char *name() { return "add 1 w/ optimized strides"; }
-    static constexpr double interpretFactor() { return 1./sizeof(Scalar); }
+    static constexpr double interpretFactor(int /*threadCount*/) { return 1./sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Add"; }
     static void run(const TestArguments &args)
     {
@@ -510,7 +516,7 @@ struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
 };/*}}}*/
 template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
 {
-    static constexpr double interpretFactor() { return 2.; } // every memory access is both load and store, thus twice the bandwidth
+    static constexpr double interpretFactor(int /*threadCount*/) { return 2.; } // every memory access is both load and store, thus twice the bandwidth
     static void run(const TestArguments &args)
     {
         const Vector one = Vector::One();
@@ -549,6 +555,7 @@ struct TestAddOne : public TestAddOneBase<false>/*{{{*/
 struct TestAddOnePrefetch : public TestAddOneBase<true>/*{{{*/
 {
     static constexpr const char *name() { return "add 1 w/ prefetch"; }
+    static bool skipConfiguration(size_t size, size_t /*offset*/, int /*sliceIndex*/, int /*threadCount*/) { return size <= CpuId::L2Data(); }
 };/*}}}*/
 template<bool Prefetch> struct TestReadBase : public TestDefaults<1>/*{{{*/
 {
@@ -588,6 +595,7 @@ struct TestRead : public TestReadBase<false>/*{{{*/
 struct TestReadPrefetch : public TestReadBase<true>/*{{{*/
 {
     static constexpr const char *name() { return "read w/ prefetch"; }
+    static bool skipConfiguration(size_t size, size_t /*offset*/, int /*sliceIndex*/, int /*threadCount*/) { return size <= CpuId::L2Data(); }
 };/*}}}*/
 /** testReadLatency {{{
  * We want to measure the latency of a read from memory. To achieve this we read a value from memory
@@ -601,7 +609,7 @@ struct TestReadPrefetch : public TestReadBase<true>/*{{{*/
 struct TestReadLatency : public TestDefaults<1>
 {
     static constexpr const char *name() { return "read latency"; }
-    static constexpr double interpretFactor() { return 1. / VectorsInCacheLine; }
+    static constexpr double interpretFactor(int threadCount) { return 1. / 64 / threadCount / sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Read"; }
     static void run(const TestArguments &args)
     {
@@ -773,7 +781,7 @@ private:
     const std::string m_only;
     Memory m_memory;
 
-    template<typename Test> void executeTest();
+    template<typename Test> void executeOneTest();
     void executeAllTests();
 
 public:
@@ -785,12 +793,12 @@ template<typename T> std::string toString(const T &x)/*{{{*/
     ss << x;
     return ss.str();
 }/*}}}*/
-template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
+template<typename Test> void BenchmarkRunner::executeOneTest()/*{{{*/
 {
     m_threadPool.setTestFunction(&Test::run);
     const size_t memorySizeT = m_memorySize * (GiB / sizeof(Scalar));
     Memory const memoryEnd = m_memory + memorySizeT;
-    for (const size_t size : Test::sizes()) {
+    for (const size_t size : Test::sizes(m_threadCount)) {
         if (size == 0) {
             continue;
         }
@@ -799,20 +807,42 @@ template<typename Test> void BenchmarkRunner::executeTest()/*{{{*/
         ss0 << Test::name() << " (" << prettyBytes(size) << ')';
         const std::string benchName = ss0.str();
         if (m_only.empty() || m_only == benchName) {
-            for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride()) {
-                for (const size_t offsetPerThread : Test::offsetsPerThread()) {
+            int sliceIndex = 0;
+            for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride(), ++sliceIndex) {
+                for (const size_t offsetPerThread : Test::offsetsPerThread(m_threadCount)) {
+                    if (Test::skipConfiguration(size, offsetPerThread, sliceIndex, m_threadCount) ||
+                        m + (m_threadCount - 1) * offsetPerThread + sizeT > memoryEnd) {
+                        break;
+                    }
                     Benchmark::setColumnData("offset per thread", toString(offsetPerThread));
                     Benchmark::setColumnData("memory location", toString((m - m_memory) / Test::stride()));
                     const int repetitions = std::max<int>(1, Test::sliceSizeT() / sizeT);
-                    Benchmark bench(benchName, size * repetitions * m_threadCount * Test::interpretFactor(), Test::interpretUnit());
-                    Timer timer;
-                    size_t offset = 0;
-                    m_threadPool.executeWith(m, [&offset, size, offsetPerThread] { return offset += offsetPerThread; }, sizeT, repetitions);
-                    Test::run({m, &timer, 0, sizeT, repetitions});
-                    m_threadPool.waitReady();
-                    bench.addTiming(timer);
-                    m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
-                    bench.Print();
+
+                    try {
+                        for (int i = 0; i < m_threadCount; ++i) {
+                            //std::cout << "prepareMemory at " << i * offsetPerThread << '\n';
+                            const TestArguments args2 = {m, nullptr, i * offsetPerThread, sizeT, repetitions};
+                            Test::prepareMemory(args2, i);
+                        }
+
+                        Benchmark bench(
+                            benchName,
+                            size * repetitions * m_threadCount * Test::interpretFactor(m_threadCount),
+                            Test::interpretUnit());
+
+                        Timer timer;
+                        size_t offset = 0;
+                        m_threadPool.executeWith(m, [&offset, offsetPerThread] { return offset += offsetPerThread; }, sizeT, repetitions);
+                        const TestArguments args = {m, &timer, 0, sizeT, repetitions};
+                        Test::run(args);
+                        m_threadPool.waitReady();
+
+                        bench.addTiming(timer);
+                        m_threadPool.eachTimer([&bench](const Timer &t) { bench.addTiming(t); });
+                        bench.Print();
+                    } catch (std::string message) {
+                        std::cout << message << std::endl;
+                    }
                     if (m_threadCount == 1) {
                         break; // with just a single thread, the thread offset makes no difference
                     }
@@ -922,15 +952,15 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
 }/*}}}*/
 void BenchmarkRunner::executeAllTests()/*{{{*/
 {
-    //executeTest<TestBzero>();
-    executeTest<TestRead>();
-    executeTest<TestReadPrefetch>();
-    executeTest<TestAddOneStrided>();
-    executeTest<TestAddOne>();
-    executeTest<TestAddOnePrefetch>();
-    executeTest<TestWrite>();
-    executeTest<TestStream>();
-    //executeTest<TestReadLatency>();
+    //executeOneTest<TestBzero>();
+    executeOneTest<TestRead>();
+    executeOneTest<TestReadPrefetch>();
+    executeOneTest<TestAddOneStrided>();
+    executeOneTest<TestAddOne>();
+    executeOneTest<TestAddOnePrefetch>();
+    executeOneTest<TestWrite>();
+    executeOneTest<TestStream>();
+    //executeOneTest<TestReadLatency>();
     Benchmark::finalize();
 }
 /*}}}*/
@@ -941,11 +971,11 @@ template<typename Test> static void printDocumentation()/*{{{*/
         << "\n\n" << Test::description()
         << "\n\nslice size: " << prettyBytes(Test::sliceSizeT() * sizeof(Scalar))
         << "\n     sizes: ";
-    for (const size_t s : Test::sizes()) {
+    for (const size_t s : Test::sizes(1)) {
         std::cout << prettyBytes(s) << ' ';
     }
     std::cout << "\n   offsets: ";
-    for (const size_t s : Test::offsetsPerThread()) {
+    for (const size_t s : Test::offsetsPerThread(1)) {
         std::cout << prettyBytes(s * sizeof(Scalar)) << ' ';
     }
     std::cout << "\n    stride: " << prettyBytes(Test::stride() * sizeof(Scalar)) << std::endl;
