@@ -319,8 +319,9 @@ public:
     }
 };/*}}}*/
 
-template<size_t SliceSize = 1> struct TestDefaults/*{{{*/
+template<size_t SliceSize_ = 1> struct TestDefaults/*{{{*/
 {
+    static constexpr size_t SliceSize = SliceSize_;
     /// in #Scalars
     static constexpr size_t sliceSizeT() { return SliceSize * GiB / sizeof(Scalar); }
     /// in Bytes
