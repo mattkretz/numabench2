@@ -8,8 +8,11 @@ project(numabench2)
 
 find_package(Vc 0.7.0 REQUIRED)
 
+list(APPEND CMAKE_MODULE_PATH "${Vc_CMAKE_MODULES_DIR}")
+find_package(MIC)
+
 # We want C++11 code
-AddCompilerFlag("-std=c++11" _yes)
+AddCompilerFlag("-std=c++11" CXX_RESULT _yes CXX_FLAGS CMAKE_CXX_FLAGS MIC_CXX_FLAGS VC_MIC_CXX_FLAGS)
 if(NOT _yes)
    AddCompilerFlag("-std=c++0x")
 endif()
@@ -18,7 +21,8 @@ endif()
 AddCompilerFlag(-pthread)
 
 # disable automatic addition of software prefetch instructions
-AddCompilerFlag("-fno-prefetch-loop-arrays")
+AddCompilerFlag("-fno-prefetch-loop-arrays" CXX_FLAGS no_prefetch MIC_CXX_FLAGS mic_no_prefetch)
+AddCompilerFlag("-no-opt-prefetch" CXX_FLAGS no_prefetch MIC_CXX_FLAGS mic_no_prefetch)
 
 find_file(HAVE_SYS_MMAN sys/mman.h)
 if(NOT HAVE_SYS_MMAN)
@@ -53,4 +57,36 @@ add_executable(add1test add1test.cpp)
 target_link_libraries(add1test ${Vc_LIBRARIES} rt cpuset)
 
 add_executable(numabench numabench.cpp)
+set_target_properties(numabench PROPERTIES COMPILE_FLAGS ${no_prefetch})
 target_link_libraries(numabench ${Vc_LIBRARIES} rt cpuset)
+
+if(MIC_NATIVE_FOUND)
+   mic_add_library(cpuset_mic STATIC cpuset.c)
+   mic_add_executable(cpuid_mic SOURCES cpuid.cpp LINK_LIBRARIES ${Vc_MIC_LIBRARIES})
+   mic_add_executable(numabench_mic SOURCES numabench.cpp LINK_LIBRARIES ${Vc_MIC_LIBRARIES} cpuset_mic -lrt COMPILE_FLAGS ${mic_no_prefetch})
+endif()
+
+add_custom_target(run_numabench
+         numabench --size 1
+         DEPENDS numabench
+         COMMENT "Execute numabench"
+         VERBATIM
+         )
+
+find_program(MIC_NATIVELOAD micnativeloadx)
+if(MIC_NATIVELOAD)
+   add_custom_target(run_numabench_mic
+      ${MIC_NATIVELOAD} numabench_mic -a "--size 2 --cores 0-241" | tee -a numabench_mic.log
+      COMMAND ${MIC_NATIVELOAD} numabench_mic -a "--size 2 --cores 0-241:4" | tee -a numabench_mic.log
+      DEPENDS numabench_mic
+      COMMENT "Execute numabench (MIC)"
+      VERBATIM
+      )
+
+   add_custom_target(run_cpuid_mic
+      ${MIC_NATIVELOAD} cpuid_mic
+      DEPENDS cpuid_mic
+      COMMENT "Execute cpuid (MIC)"
+      VERBATIM
+      )
+endif()
