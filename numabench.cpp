@@ -607,50 +607,68 @@ struct TestReadPrefetch : public TestReadBase<true>/*{{{*/
  * [                x                               x               ...]
  * [                        x                               x       ...]
  */
-struct TestReadLatency : public TestDefaults<1>
+struct TestReadLatency : public TestDefaults<2>
 {
     static constexpr const char *name() { return "read latency"; }
     static constexpr double interpretFactor(int threadCount) { return 1. / 64 / threadCount / sizeof(Scalar); }
     static constexpr const char *interpretUnit() { return "Read"; }
+    /// in Bytes
+    static std::vector<size_t> sizes(int threadCount) {
+        return {std::max(CpuId::L3Data(), CpuId::L2Data()) * 5, CpuId::L3Data() / 2,
+                CpuId::L2Data() / 2,                            CpuId::L1Data() / 2};
+    }
+    /// in #Scalars
+    static std::vector<size_t> offsetsPerThread(int threadCount) {
+        return {
+            sliceSizeT() / Vector::Size / threadCount * Vector::Size
+            //std::max(CpuId::L3Data(), CpuId::L2Data()) / sizeof(Scalar) + 3 * ScalarsInCacheLine,
+        };
+    }
+    static void prepareMemory(const TestArguments &args, int threadId)/*{{{*/
+    {
+        if (threadId == 1) {
+            // sanity check
+            if (args.offset < args.size) {
+                // this breaks
+                std::stringstream s;
+                s << "TestReadLatency has broken parameters. The offset between threads is too small for the requested size."
+                    " (offset = " << args.offset << ", size = " << args.size << ')';
+                throw s.str();
+            }
+        }
+        std::size_t *const begin = reinterpret_cast<std::size_t *>(args.mem + args.offset);
+        std::size_t *const end   = reinterpret_cast<std::size_t *>(args.mem + args.offset + args.size);
+
+        for (auto it = begin; it < end; ++it) {
+            auto next = it + 997;
+            if (next >= end) {
+                *it = next - end;
+            } else {
+                *it = next - begin;
+            }
+        }
+        //const std::size_t numberOfReads = args.size / 128;
+        //std::cout << "latency test with " << numberOfReads << " reads and " << args.repetitions << " repetitions.\n";
+    }/*}}}*/
     static void run(const TestArguments &args)
     {
-        // TODO: fill the memory with offsets
+        const std::size_t *const data = reinterpret_cast<std::size_t *>(args.mem + args.offset);
+        const std::size_t numberOfReads = args.size / 64;
 
-        Memory const mStart = args.mem;
-        Memory const mEnd = mStart + args.size;
-        Memory const mPageEnd = mStart + ScalarsInPage;
+        std::size_t index = data[0];
         args.timer->start();
-        if (((mEnd - mStart) / ScalarsInCacheLine) & 1) {
-            for (int rep = 0; rep < args.repetitions; ++rep) {
-                for (Memory mCacheLine = mStart; mCacheLine < mPageEnd; mCacheLine += ScalarsInCacheLine) {
-                    for (Memory m = mCacheLine; m < mEnd; m += ScalarsInPage) {
-                        //asm volatile("lfence");
-                        asm volatile("" :: "d"(*m));
-                    }
-                }
+        for (int rep = 0; rep < args.repetitions; ++rep) {
+            for (std::size_t i = 0; i < numberOfReads; i += 8) {
+                index = data[index];
+                index = data[index];
+                index = data[index];
+                index = data[index];
+                index = data[index];
+                index = data[index];
+                index = data[index];
+                index = data[index];
             }
-        } else if (((mEnd - mStart) / ScalarsInCacheLine) & 2) {
-            for (int rep = 0; rep < args.repetitions; ++rep) {
-                for (Memory mCacheLine = mStart; mCacheLine < mPageEnd; mCacheLine += ScalarsInCacheLine) {
-                    for (Memory m = mCacheLine; m < mEnd - ScalarsInPage; m += 2 * ScalarsInPage) {
-                        //asm volatile("lfence");
-                        asm volatile("" :: "d"(*m));
-                        asm volatile("" :: "d"(*(m + ScalarsInPage)));
-                    }
-                }
-            }
-        } else {
-            for (int rep = 0; rep < args.repetitions; ++rep) {
-                for (Memory mCacheLine = mStart; mCacheLine < mPageEnd; mCacheLine += ScalarsInCacheLine) {
-                    for (Memory m = mCacheLine; m < mEnd - 3 * ScalarsInPage; m += 4 * ScalarsInPage) {
-                        //asm volatile("lfence");
-                        asm volatile("" :: "d"(*m));
-                        asm volatile("" :: "d"(*(m + ScalarsInPage)));
-                        asm volatile("" :: "d"(*(m + 2 * ScalarsInPage)));
-                        asm volatile("" :: "d"(*(m + 3 * ScalarsInPage)));
-                    }
-                }
-            }
+            asm volatile("" :: "r"(index));
         }
         args.timer->stop();
     }
