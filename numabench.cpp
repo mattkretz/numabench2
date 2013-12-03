@@ -673,6 +673,59 @@ struct TestReadLatency : public TestDefaults<2>
         args.timer->stop();
     }
 };/*}}}*/
+struct TestIndependentRead : public TestDefaults<1>/*{{{*/
+{
+    static constexpr const char *name() { return "independent read"; }
+    /// in Bytes
+    static std::vector<size_t> sizes(int /*threadCount*/) { return {SliceSize * GiB}; }
+    /// in #Scalars
+    static constexpr size_t regionSize() {
+        return sliceSizeT() / (8 * Vector::Size) / 997 * (8 * Vector::Size);
+    }
+    /// in #Scalars
+    static std::vector<size_t> offsetsPerThread(int /*threadCount*/) {
+        return {regionSize()};
+    }
+    // regionSize * repetitions * sizeof(Scalar) = 1 GiB
+    static constexpr size_t repetitions() { return GiB / (regionSize() * sizeof(Scalar)); }
+    // we don't read exactly 1 GiB
+    static constexpr double interpretFactor(int /*threadCount*/) { return static_cast<double>(repetitions() * regionSize()) / sliceSizeT(); }
+    static constexpr const char *description()
+    {
+        return "The \"independent read\" benchmark splits 1 GiB of memory in 997 parts\n"
+               "and distributes the reader threads on non-overlapping parts thereof.\n"
+               "The readers will then each read 1 GiB of memory. Since the memory regions\n"
+               "do not overlap the caches will not be able to hide memory accesses. The\n"
+               "benchmark should therefore give a good indication of the achievable raw memory\n"
+               "read bandwidth.";
+    }
+    static void run(const TestArguments &args)
+    {
+        const size_t size = regionSize();
+        const MemoryRange range(args.mem + args.offset, size);
+        const size_t repetitions = args.repetitions * TestIndependentRead::repetitions();
+
+        //size_t check = 0;
+
+        args.timer->start();
+        for (int rep = 0; rep < repetitions; ++rep) {
+            for (Memory m = range.start; m < range.end; m += Vector::Size * 8) {
+                const Vector v0(m - 7 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v1(m - 6 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v2(m - 5 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v3(m - 4 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v4(m - 3 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v5(m - 2 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v6(m - 1 * Vector::Size, Vc::PrefetchDefault);
+                const Vector v7(m - 0 * Vector::Size, Vc::PrefetchDefault);
+                Vc::forceToRegisters(v0, v1, v2, v3, v4, v5, v6, v7);
+                //check += 8 * Vector::Size * sizeof(Scalar);
+            }
+        }
+        args.timer->stop();
+        //std::cout << "check: " << check << std::endl;
+    }
+};/*}}}*/
 
 template<typename T> struct convertStringTo/*{{{*/
 {
