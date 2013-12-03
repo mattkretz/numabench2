@@ -329,9 +329,10 @@ template<size_t SliceSize_ = 1> struct TestDefaults/*{{{*/
     /// in #Scalars
     static std::vector<size_t> offsetsPerThread(int /*threadCount*/) {
         return { 0,
-            CpuId::L1Data() / sizeof(Scalar),
-            sliceSizeT() / 128,
-            sliceSizeT() / 128 + 7 * ScalarsInCacheLine
+            CpuId::L1Data() / sizeof(Scalar) + ScalarsInCacheLine,
+            CpuId::L2Data() / sizeof(Scalar) + ScalarsInCacheLine,
+            //sliceSizeT() / 256,
+            sliceSizeT() / 256 + 7 * ScalarsInCacheLine
         };
     }
     static constexpr double interpretFactor(int /*threadCount*/) { return 1.; }
