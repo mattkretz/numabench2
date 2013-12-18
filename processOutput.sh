@@ -24,7 +24,7 @@ input="$1"
 output="${input%.*}.pdf"
 
 sliceOneBenchmark() {
-	cut -f1,3,4,5,10 "$input" | grep -G "$1" | cut -f2-
+	cut -f1,3,4,5,10,12 "$input" | grep -G "$1" | cut -f2-
 }
 
 sliceSubset() {
@@ -32,6 +32,13 @@ sliceSubset() {
 	cores="$2"
 	offset="\"$3\""
 	echo "$data" | grep -G '".*"'".${offset}.${cores}" | cut -f1,4 | sed 's/"//g'
+}
+
+sliceSecondSubset() {
+	data="$1"
+	cores="$2"
+	offset="\"$3\""
+	echo "$data" | grep -G '".*"'".${offset}.${cores}" | cut -f1,$4 | sed 's/"//g'
 }
 
 coreCount() {
@@ -83,6 +90,21 @@ e
 								echo -n ", "
 							fi
 							echo -n "'-' using 1:(\$2*1e-9) with linespoints title ${c}"
+
+							# Maximum values
+							subset="`sliceSecondSubset "$data" "$c" "$o" 5`"
+							test -z "$subset" && continue
+							inlineData="${inlineData}${subset}
+e
+"
+							if $first; then
+								first=false
+								echo -n "plot "
+							else
+								echo -n ", "
+							fi
+							echo -n "'-' using 1:(\$2*1e-9) with linespoints title \"${c//\"} - Max\""
+
 						done
 						echo -e "\n${inlineData}"
 					done
