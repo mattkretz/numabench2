@@ -178,6 +178,7 @@ private:
     double m_mean[2];
     double m_minimum;
     double m_stddev[2];
+    std::vector<double> m_times;
     int m_dataPointsCount;
     static FileWriter *s_fileWriter;
 };
@@ -293,15 +294,16 @@ Benchmark::Benchmark(const std::string &_name, double factor, const std::string 
         m_mean[i] = m_stddev[i] = 0.;
     }
     m_minimum = std::numeric_limits<double>::max();
+    m_times.clear();
     enum {
         WCHARSIZE = sizeof("━") - 1
     };
     if (!s_fileWriter) {
         const bool interpret = (fFactor != 0.);
-        char header[128 * WCHARSIZE];
+        char header[150 * WCHARSIZE];
         std::memset(header, 0, 128 * WCHARSIZE);
         std::strcpy(header,
-                "┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓");
+                "┏━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━┓");
         if (!interpret) {
             header[(69 - 17) * WCHARSIZE] = '\0';
         }
@@ -442,7 +444,7 @@ inline void Benchmark::printMiddleLine() const
     std::cout << "\n"
         "┠────────────────╂────────────────"
         << (interpret ?
-                "╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────┨" : "┨");
+                "╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────╂────────────────┨" : "┨");
 }
 inline void Benchmark::printBottomLine() const
 {
@@ -450,13 +452,14 @@ inline void Benchmark::printBottomLine() const
     std::cout << "\n"
         "┗━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━"
         << (interpret ?
-                "┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┛" : "┛") << std::endl;
+                "┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━┛" : "┛") << std::endl;
 }
 
 inline void Benchmark::addTiming(const Timer &t) {
     m_mean[0] += t.realTime();
     m_mean[1] += t.cycles();
     m_minimum = m_minimum < t.realTime() ? m_minimum : t.realTime();
+    m_times.push_back(t.realTime());
     m_stddev[0] += t.realTime() * t.realTime();
     m_stddev[1] += t.cycles() * t.cycles();
     ++m_dataPointsCount;
@@ -484,6 +487,8 @@ inline void Benchmark::Print()
         std::cout << centered("s/" + fX + " [Real]") << "┃";
         std::cout << centered(fX + "/s [Max]") << "┃";
         std::cout << centered("s/" + fX + " [Max]") << "┃";
+        std::cout << centered(fX + "/s [Median]") << "┃";
+        std::cout << centered("s/" + fX + " [Median]") << "┃";
         std::cout << centered(fX + "/cycle")    << "┃";
         std::cout << centered("cycles/" + fX)   << "┃";
         std::string X = fX;
@@ -495,6 +500,7 @@ inline void Benchmark::Print()
         header
             << X + "/Real_time" << X + "/Real_time_stddev"
             << X + "/Min_time"
+            << X + "/Median_time"
             << X + "/Cycles" << X + "/Cycles_stddev"
             << "number_of_" + X;
     }
@@ -504,6 +510,17 @@ inline void Benchmark::Print()
     }
 
     const double normalization = 1. / m_dataPointsCount;
+    double m_median;
+
+    // Calculate median of times
+    std::sort(m_times.begin(),m_times.end());
+    int n = m_times.size();
+    if (n%2 == 0) {
+      m_median = 0.5*(m_times[(n-1)/2] + m_times[n/2]);
+    }
+    else {
+      m_median = m_times[n/2];
+    }
 
     std::list<std::string> dataLine;
     m_mean[0] *= normalization;
@@ -517,6 +534,7 @@ inline void Benchmark::Print()
     stddevint[1] = fFactor * m_stddev[1] / (m_mean[1] * m_mean[1]);
     dataLine << fFactor / m_mean[0] << stddevint[0];
     dataLine << fFactor / m_minimum;
+    dataLine << fFactor / m_median;
     dataLine << fFactor / m_mean[1] << stddevint[1];
     dataLine << fFactor;
 
@@ -535,6 +553,10 @@ inline void Benchmark::Print()
         std::cout << " ┃ ";
         prettyPrintSeconds(m_minimum / fFactor);
         std::cout << " ┃ ";
+        prettyPrintCount(fFactor / m_median);
+        std::cout << " ┃ ";
+        prettyPrintSeconds(m_median / fFactor);
+        std::cout << " ┃ ";
         prettyPrintCount(fFactor / m_mean[1]);
         std::cout << " ┃ ";
         prettyPrintCount(m_mean[1] / fFactor);
@@ -551,8 +573,10 @@ inline void Benchmark::Print()
         std::cout << " ┃ ";
         prettyPrintError(m_stddev[0] * 100. / m_mean[0]);
         std::cout << " ┃ ";
-        std::cout << "               ┃ ";
-        std::cout << "               ┃ ";
+        std::cout << "             - ┃ ";
+        std::cout << "             - ┃ ";
+        std::cout << "             - ┃ ";
+        std::cout << "             - ┃ ";
         prettyPrintError(m_stddev[1] * 100. / m_mean[1]);
         std::cout << " ┃ ";
         prettyPrintError(m_stddev[1] * 100. / m_mean[1]);
