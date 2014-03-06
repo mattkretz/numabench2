@@ -27,6 +27,7 @@
 #include <vector>
 #include <algorithm>
 #include <time.h>
+#include <unistd.h>
 #include <cstring>
 #include <string>
 #include <fstream>
