@@ -57,6 +57,7 @@ struct TestArguments/*{{{*/
     size_t offset;
     size_t size;
     int repetitions;
+    int threadCount;
 };/*}}}*/
 typedef void (*TestFunction)(const TestArguments &args);
 struct MemoryRange/*{{{*/
@@ -678,20 +679,20 @@ struct TestIndependentRead : public TestDefaults<1>/*{{{*/
     /// in Bytes
     static std::vector<size_t> sizes(int /*threadCount*/) { return {SliceSize * GiB}; }
     /// in #Scalars
-    static constexpr size_t regionSize() {
-        return sliceSizeT() / (8 * Vector::Size) / 997 * (8 * Vector::Size);
+    static constexpr size_t regionSize(int threadCount) {
+        return sliceSizeT() / (8 * Vector::Size) / threadCount * (8 * Vector::Size);
     }
     /// in #Scalars
-    static std::vector<size_t> offsetsPerThread(int /*threadCount*/) {
-        return {regionSize()};
+    static std::vector<size_t> offsetsPerThread(int threadCount) {
+        return {regionSize(threadCount)};
     }
     // regionSize * repetitions * sizeof(Scalar) = 1 GiB
-    static constexpr size_t repetitions() { return GiB / (regionSize() * sizeof(Scalar)); }
+    static constexpr size_t repetitions(int threadCount) { return GiB / (regionSize(threadCount) * sizeof(Scalar)); }
     // we don't read exactly 1 GiB
-    static constexpr double interpretFactor(int /*threadCount*/) { return static_cast<double>(repetitions() * regionSize()) / sliceSizeT(); }
+    static constexpr double interpretFactor(int threadCount) { return static_cast<double>(repetitions(threadCount) * regionSize(threadCount)) / sliceSizeT(); }
     static constexpr const char *description()
     {
-        return "The \"independent read\" benchmark splits 1 GiB of memory in 997 parts\n"
+        return "The \"independent read\" benchmark splits 1 GiB of memory in as many parts as there are threads\n"
                "and distributes the reader threads on non-overlapping parts thereof.\n"
                "The readers will then each read 1 GiB of memory. Since the memory regions\n"
                "do not overlap the caches will not be able to hide memory accesses. The\n"
@@ -700,9 +701,9 @@ struct TestIndependentRead : public TestDefaults<1>/*{{{*/
     }
     static void run(const TestArguments &args)
     {
-        const size_t size = regionSize();
+        const size_t size = regionSize(args.threadCount);
         const MemoryRange range(args.mem + args.offset, size);
-        const size_t repetitions = args.repetitions * TestIndependentRead::repetitions();
+        const size_t repetitions = args.repetitions * TestIndependentRead::repetitions(args.threadCount);
 
         //size_t check = 0;
 
@@ -892,7 +893,7 @@ template<typename Test> void BenchmarkRunner::executeOneTest()/*{{{*/
                     try {
                         for (int i = 0; i < m_threadCount; ++i) {
                             //std::cout << "prepareMemory at " << i * offsetPerThread << '\n';
-                            const TestArguments args2 = {m, nullptr, i * offsetPerThread, sizeT, repetitions};
+                            const TestArguments args2 = {m, nullptr, i * offsetPerThread, sizeT, repetitions, m_threadCount};
                             Test::prepareMemory(args2, i);
                         }
 
@@ -904,7 +905,7 @@ template<typename Test> void BenchmarkRunner::executeOneTest()/*{{{*/
                         Timer timer;
                         size_t offset = 0;
                         m_threadPool.executeWith(m, [&offset, offsetPerThread] { return offset += offsetPerThread; }, sizeT, repetitions);
-                        const TestArguments args = {m, &timer, 0, sizeT, repetitions};
+                        const TestArguments args = {m, &timer, 0, sizeT, repetitions, m_threadCount};
                         Test::run(args);
                         m_threadPool.waitReady();
 
