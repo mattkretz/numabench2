@@ -966,6 +966,10 @@ BenchmarkRunner::BenchmarkRunner()/*{{{*/
         std::cerr << "Not enough memory available. Expect crashes/OOM kills." << std::endl;
     }/*}}}*/
     m_memory = Vc::malloc<Scalar, Vc::AlignOnPage>(m_memorySize * GiB / sizeof(Scalar));
+    if (0 == m_memory) {
+        std::cerr << "memory allocation failed.\n";
+        throw std::string("memory allocation failed");
+    }
     if (0 == mlockall(MCL_CURRENT)) {
         std::cerr << "mlockall failed. Using memset instead.\n";
     }
