@@ -710,6 +710,7 @@ struct TestIndependentRead : public TestDefaults<1>/*{{{*/
         args.timer->start();
         for (int rep = 0; rep < repetitions; ++rep) {
             for (Memory m = range.start; m < range.end; m += Vector::Size * 8) {
+#if VC_VERSION_NUMBER > VC_VERSION_CHECK(0, 99, 71)
                 const Vector v0(m - 7 * Vector::Size, Vc::PrefetchDefault);
                 const Vector v1(m - 6 * Vector::Size, Vc::PrefetchDefault);
                 const Vector v2(m - 5 * Vector::Size, Vc::PrefetchDefault);
@@ -718,6 +719,16 @@ struct TestIndependentRead : public TestDefaults<1>/*{{{*/
                 const Vector v5(m - 2 * Vector::Size, Vc::PrefetchDefault);
                 const Vector v6(m - 1 * Vector::Size, Vc::PrefetchDefault);
                 const Vector v7(m - 0 * Vector::Size, Vc::PrefetchDefault);
+#else
+                const Vector v0(m - 7 * Vector::Size);
+                const Vector v1(m - 6 * Vector::Size);
+                const Vector v2(m - 5 * Vector::Size);
+                const Vector v3(m - 4 * Vector::Size);
+                const Vector v4(m - 3 * Vector::Size);
+                const Vector v5(m - 2 * Vector::Size);
+                const Vector v6(m - 1 * Vector::Size);
+                const Vector v7(m - 0 * Vector::Size);
+#endif
                 Vc::forceToRegisters(v0, v1, v2, v3, v4, v5, v6, v7);
                 //check += 8 * Vector::Size * sizeof(Scalar);
             }
