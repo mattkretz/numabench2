@@ -6,6 +6,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <atomic>
+#include <unistd.h>
 #include <Vc/cpuid.h>
 #include "cpuset.h"
 
