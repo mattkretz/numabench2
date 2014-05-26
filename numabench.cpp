@@ -521,33 +521,42 @@ struct TestAddOneStrided2 : public TestDefaults<8>/*{{{*/
 };/*}}}*/
 template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
 {
-    static constexpr double interpretFactor(int /*threadCount*/) { return 2.; } // every memory access is both load and store, thus twice the bandwidth
+    /// in #Scalars
+    static std::vector<size_t> offsetsPerThread(int threadCount) {
+        return {
+            sliceSizeT() / Vector::Size / threadCount * Vector::Size
+        };
+    }
+    static constexpr double interpretFactor(int /*threadCount*/)
+    {
+        // every memory address is used for both load and store, thus twice the bandwidth
+        return 2.;
+    }
     static void run(const TestArguments &args)
     {
         const Vector one = Vector::One();
 
-        const size_t offset = args.offset + args.size > sliceSizeT() ? args.offset : 0;
-        const MemoryRange mRange[2] = {
-            { args.mem + args.offset, args.size - offset },
-            { args.mem, offset }
-        };
+        const size_t size = args.size / args.threadCount;  // reduce the size to read per thread so
+                                                           // that all threads together read the
+                                                           // whole slice but there is no overlap
+        const MemoryRange range = { args.mem + args.offset, size };
+        assert(args.offset + size <= sliceSizeT());
+        const int repetitions = args.repetitions * args.threadCount;
 
         args.timer->start();
-        for (int rep = 0; rep < args.repetitions; ++rep) {
-            for (const auto &range : mRange) {
-                for (Memory m = range.start + 3 * Vector::Size; m < range.end; m += 4 * Vector::Size) {
-                    if (Prefetch) {
-                        Vc::prefetchForModify(m + 4032 / sizeof(Scalar));
-                    }
-                    const Vector tmp0 = Vector(m - 3 * Vector::Size) + one;
-                    const Vector tmp1 = Vector(m - 2 * Vector::Size) + one;
-                    const Vector tmp2 = Vector(m - 1 * Vector::Size) + one;
-                    const Vector tmp3 = Vector(m - 0 * Vector::Size) + one;
-                    tmp0.store(m - 3 * Vector::Size);
-                    tmp1.store(m - 2 * Vector::Size);
-                    tmp2.store(m - 1 * Vector::Size);
-                    tmp3.store(m - 0 * Vector::Size);
+        for (int rep = 0; rep < repetitions; ++rep) {
+            for (Memory m = range.start + 3 * Vector::Size; m < range.end; m += 4 * Vector::Size) {
+                if (Prefetch) {
+                    Vc::prefetchForModify(m + 4032 / sizeof(Scalar));
                 }
+                const Vector tmp0 = Vector(m - 3 * Vector::Size) + one;
+                const Vector tmp1 = Vector(m - 2 * Vector::Size) + one;
+                const Vector tmp2 = Vector(m - 1 * Vector::Size) + one;
+                const Vector tmp3 = Vector(m - 0 * Vector::Size) + one;
+                tmp0.store(m - 3 * Vector::Size);
+                tmp1.store(m - 2 * Vector::Size);
+                tmp2.store(m - 1 * Vector::Size);
+                tmp3.store(m - 0 * Vector::Size);
             }
         }
         args.timer->stop();
