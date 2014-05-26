@@ -290,11 +290,15 @@ public:
         }
     }
 
-    template<typename OffsetFunction>
-    void executeWith(Memory mem, OffsetFunction offset, size_t _size, int repetitions)
+    template <typename OffsetFunction>
+    void executeWith(Memory mem,
+                     OffsetFunction offset,
+                     size_t _size,
+                     int repetitions,
+                     int threadCount)
     {
         for (auto &t : m_workers) {
-            t->setParameters({ mem, nullptr, offset(), _size, repetitions });
+            t->setParameters({ mem, nullptr, offset(), _size, repetitions, threadCount });
         }
         wakeAllWorkers();
     }
@@ -916,7 +920,12 @@ template<typename Test> void BenchmarkRunner::executeOneTest()/*{{{*/
 
                         Timer timer;
                         size_t offset = 0;
-                        m_threadPool.executeWith(m, [&offset, offsetPerThread] { return offset += offsetPerThread; }, sizeT, repetitions);
+                        m_threadPool.executeWith(
+                            m,
+                            [&offset, offsetPerThread] { return offset += offsetPerThread; },
+                            sizeT,
+                            repetitions,
+                            m_threadCount);
                         const TestArguments args = {m, &timer, 0, sizeT, repetitions, m_threadCount};
                         Test::run(args);
                         m_threadPool.waitReady();
