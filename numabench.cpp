@@ -530,8 +530,8 @@ template<bool Prefetch> struct TestAddOneBase : public TestDefaults<1>/*{{{*/
 
         args.timer->start();
         for (int rep = 0; rep < args.repetitions; ++rep) {
-            for (int i = 0; i < 2; ++i) {
-                for (Memory m = mRange[i].start + 3 * Vector::Size; m < mRange[i].end; m += 4 * Vector::Size) {
+            for (const auto &range : mRange) {
+                for (Memory m = range.start + 3 * Vector::Size; m < range.end; m += 4 * Vector::Size) {
                     if (Prefetch) {
                         Vc::prefetchForModify(m + 4032 / sizeof(Scalar));
                     }
