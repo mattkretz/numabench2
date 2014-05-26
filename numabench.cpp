@@ -907,8 +907,7 @@ template<typename Test> void BenchmarkRunner::executeOneTest()/*{{{*/
             int sliceIndex = 0;
             for (Memory m = m_memory; m + Test::sliceSizeT() <= memoryEnd; m += Test::stride(), ++sliceIndex) {
                 for (const size_t offsetPerThread : Test::offsetsPerThread(m_threadCount)) {
-                    if (Test::skipConfiguration(size, offsetPerThread, sliceIndex, m_threadCount) ||
-                        m + (m_threadCount - 1) * offsetPerThread + sizeT > memoryEnd) {
+                    if (Test::skipConfiguration(size, offsetPerThread, sliceIndex, m_threadCount)) {
                         break;
                     }
                     Benchmark::setColumnData("offset per thread", prettyBytes(offsetPerThread * sizeof(Scalar)));
